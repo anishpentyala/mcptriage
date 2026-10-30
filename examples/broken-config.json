@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "weather": {
+      "command": "definitely-not-a-real-command-xyz",
+      "args": ["serve"],
+      "env": {"API_KEY": "${env:WEATHER_API_KEY_PROBABLY_UNSET}"}
+    },
+    "remote": {
+      "command": "python",
+      "url": "https://example.invalid/mcp",
+      "type": "carrier-pigeon"
+    },
+    "empty": {}
+  }
+}
