@@ -1,0 +1,7 @@
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"agent","version":"1.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{"tools":{}},"serverInfo":{"name":"weather","version":"1.0"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"get_forecast","description":"Forecast for a city","inputSchema":{"type":"object","properties":{"city":{"type":"string"},"days":{"type":"integer"}},"required":["city"],"additionalProperties":false}}]}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_forecast","arguments":{"days":"three","units":"metric"}}}
+{"jsonrpc":"2.0","id":3,"error":{"code":-32602,"message":"Invalid params"}}
