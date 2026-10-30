@@ -1,0 +1,6 @@
+{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"protocolVersion":"2026-07-28"}}}
+{"jsonrpc":"2.0","id":1,"result":{"serverInfo":{"name":"modern","version":"2.0"},"supported":["2026-07-28","2025-11-25"]}}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"_meta":{"protocolVersion":"2026-07-28"}}}
+{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"search","description":"Search docs","inputSchema":{"type":"object","properties":{"q":{"type":"string"}},"required":["q"]}}],"ttlMs":300000,"cacheScope":"public"}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search","arguments":{"q":"mcp"},"_meta":{"protocolVersion":"2026-07-28"}}}
+{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"3 results"}],"isError":false}}
