@@ -149,6 +149,10 @@ claim about everything that exists.
 - Heuristic, not spec-complete: rules cover documented recurring failure
   modes, not every possible fault. Rules are written against the protocol
   revisions cited in Sources; newer revisions may change behavior.
+- Schema-shape diagnostics require a chronologically paired, non-error
+  `tools/list` response. A payload merely containing a `tools` field, an orphan
+  response or an ambiguous ID exchange is not enough to attribute a schema
+  problem to the tool catalog. This is not full result-envelope validation.
 - Transcript quality gates diagnosis quality. A capture that starts
   mid-session can produce orphan-response noise and tentative absence-based
   findings (flagged as such).
