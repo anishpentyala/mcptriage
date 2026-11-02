@@ -323,3 +323,8 @@ Config checks validate field shapes before using them: `command`, `url` and
 string values. Malformed values produce `CFG_SHAPE` without echoing those values;
 they cannot count as launch or endpoint evidence. These remain shared-format
 checks rather than a guarantee that any specific client will accept the config.
+
+For supported `type: integer` argument checks, integral JSON numbers such as
+`1`, `1.0` and `1e0` satisfy the type. Booleans, numeric strings and fractional
+numbers do not. This does not add arbitrary-precision decoding for argument
+values or turn the checker into a full JSON Schema validator.
