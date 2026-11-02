@@ -288,3 +288,18 @@ paths that copied Authorization/Bearer headers, token-like JSON/query values or
 URL credentials into reports. It is not a complete sanitizer: unknown formats,
 ordinary text and arbitrary tool output may still contain sensitive data. Review
 reports and captures before sharing them; no raw log is made safe by this guard.
+
+### Response evidence and reused IDs
+
+A response can answer only an earlier, uniquely outstanding request with the
+same ID type and value. An orphan response cannot hide a later `tools/list`
+hang, and an earlier completed reuse does not answer a new request. Sequential
+reuse is supported when each response completes before the next request.
+
+If the same typed ID is requested again while outstanding, direction and
+ownership cannot be proven in this untagged capture. Neither overlapping request
+nor later requests with that ID receive a guessed response. Earlier completed
+pairs and other IDs are unaffected. `DIRECTION_AMBIGUOUS` keeps absence-based
+conclusions tentative. Delayed duplicate responses remain indistinguishable
+from a response to a later sequential reuse; use distinct IDs or direction-tagged
+captures when that distinction matters.
