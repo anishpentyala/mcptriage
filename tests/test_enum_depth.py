@@ -103,3 +103,18 @@ def test_cli_deep_enum_has_safe_exit_and_bounded_output(equal,mode,source,tmp_pa
         assert report['finding_count']>=1
         if accepted:
             assert report['finding_count']==1
+
+
+@pytest.mark.parametrize('mode',['text','json'])
+def test_enum_explanation_masks_known_secret_before_clipping(mode):
+    from mcptriage.report import render_text,render_json
+    secret='SYNTHETIC_PRIVATE_SUFFIX'*50
+    allowed=json.dumps({'token':secret,'version':'next'})
+    rows=[{'id':1,'method':'tools/list'},
+          {'id':1,'result':{'tools':[{'name':'x','inputSchema':{'properties':{'arg':{'enum':[allowed]}}}}]}},
+          {'id':2,'method':'tools/call','params':{'name':'x','arguments':{'arg':'wrong'}}},
+          {'id':2,'error':{'code':-32602}}]
+    fs=diagnose(parse_text('\n'.join(map(json.dumps,rows))))
+    output=(render_json if mode=='json' else render_text)(fs,'synthetic')
+    assert 'SYNTHETIC_PRIVATE_SUFFIX' not in output
+    assert '***' in output
