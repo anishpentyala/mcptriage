@@ -95,7 +95,7 @@ def _type_ok(declared: Any, value: Any) -> bool:
     if declared == "number":
         return isinstance(value, (int, float)) and not isinstance(value, bool)
     if declared == "integer":
-        return isinstance(value, int) and not isinstance(value, bool)
+        return type(value) is int or (type(value) is float and value.is_integer())
     if declared == "boolean":
         return isinstance(value, bool)
     if declared == "array":
