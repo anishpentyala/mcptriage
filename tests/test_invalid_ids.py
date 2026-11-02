@@ -100,3 +100,20 @@ def test_precise_decimal_id_with_optional_log_prefix(prefix):
                        +prefix+'{"id":9007199254740993,"result":{"tools":[]}}')
     assert session.response_for(session.requests()[0]).line_no==2
     assert session.requests()[0].msg_id==9007199254740993
+
+
+@pytest.mark.parametrize('prefix',['','2026-11-02 [mcp] '])
+@pytest.mark.parametrize('numeric',['1e9999999999999999999','1e-9999999999999999999'])
+def test_decimal_conversion_overflow_is_diagnosed(prefix,numeric):
+    session=parse_text(prefix+'{"id":'+numeric+',"method":"tools/list"}')
+    assert session.requests()==[]
+    assert any(f.code=='INVALID_RPC_ID' for f in diagnose(session))
+
+
+@pytest.mark.parametrize('prefix',['','2026-11-02 [mcp] '])
+@pytest.mark.parametrize('numeric',['1e9999999999999999999','1e-9999999999999999999'])
+def test_unrelated_decimal_overflow_does_not_invalidate_id(prefix,numeric):
+    session=parse_text(prefix+'{"id":1.0,"method":"tools/list","params":{"x":'+numeric+'}}\n'
+                       +prefix+'{"id":1,"result":{"tools":[]}}')
+    assert session.response_for(session.requests()[0]).line_no==2
+    assert 'INVALID_RPC_ID' not in {f.code for f in diagnose(session)}
