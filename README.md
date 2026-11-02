@@ -228,3 +228,16 @@ validator; direction ambiguity and incomplete-capture caveats still apply.
 
 Source: [MCP 2026-07-28 basic messages](https://modelcontextprotocol.io/specification/2026-07-28/basic),
 checked 2026-11-02; the 2025-11-25 basic spec has the same ID type rule.
+
+### Tool-schema evidence
+
+Argument explanations use schemas only from the first response to a unique,
+earlier captured `tools/list` request with the same ID type and value. Orphan
+responses, unrelated methods and duplicate responses do not supply schemas.
+A repeated ID anywhere before the diagnosed call makes that ID ambiguous in
+an untagged bidirectional capture, so its schema evidence is omitted. This can
+reduce detail for captures with valid sequential ID reuse, but avoids guessing
+which side or method owns the response. Other unique exchanges still contribute.
+Later messages outside the diagnostic's capture cutoff cannot change earlier
+schema evidence. This is a conservative evidence filter, not direction detection
+or complete protocol validation.
