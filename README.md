@@ -251,3 +251,17 @@ parameter-specific explanations are omitted instead of treating a malformed
 value as an empty object or crashing. Missing params keep the existing behavior.
 This targeted guard is not complete method-schema validation; other diagnostic
 rules can still report independent evidence from the same exchange.
+
+### Pagination evidence
+
+Pagination follow-through requires a later captured `tools/list` request with
+the exact string cursor returned by a page response. An earlier request cannot
+prove that a later page was followed. Empty strings are valid opaque cursors,
+not an end-of-results signal. Explicit non-string cursors produce high-severity
+`UNUSABLE_CURSOR`, remain as evidence and do not satisfy continuation checks.
+These checks cannot prove completeness outside the capture or distinguish
+concurrent list contexts that share a cursor in an untagged log.
+
+Source: [MCP pagination](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination),
+checked 2026-11-02. The specification calls cursors opaque string tokens and
+explicitly says an empty string must not be treated as the end of results.
