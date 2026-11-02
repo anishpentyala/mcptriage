@@ -6,9 +6,9 @@ from mcptriage.rules import diagnose
 
 @pytest.mark.parametrize('prefix',['','log: '])
 @pytest.mark.parametrize('shape',['array','object'])
-def test_deep_input_retained_not_crash(prefix,shape):
-    nested=('['*2000+'0'+']'*2000 if shape=='array' else
-            '{"x":'*2000+'0'+'}'*2000)
+def test_deep_input_retained_not_crash(prefix,shape,rejected_nesting_depth):
+    nested=('['*rejected_nesting_depth+'0'+']'*rejected_nesting_depth if shape=='array' else
+            '{"x":'*rejected_nesting_depth+'0'+'}'*rejected_nesting_depth)
     text=prefix+'{"id":1,"method":"tools/list","params":{"nested":'+nested+'}}'
     s=parse_text(text)
     assert len(s.messages)==1
@@ -17,14 +17,14 @@ def test_deep_input_retained_not_crash(prefix,shape):
     assert any(f.code=='NO_PROTOCOL_MESSAGES' for f in diagnose(s))
 
 @pytest.mark.parametrize('prefix',['','log: '])
-def test_deep_rejected_object_not_replaced_by_nested_request(prefix):
-    text=prefix+'{"nested":'+'['*2000+'0'+']'*2000+',"fake":{"id":7,"method":"tools/list"}}'
+def test_deep_rejected_object_not_replaced_by_nested_request(prefix,rejected_nesting_depth):
+    text=prefix+'{"nested":'+'['*rejected_nesting_depth+'0'+']'*rejected_nesting_depth+',"fake":{"id":7,"method":"tools/list"}}'
     s=parse_text(text)
     assert s.requests()==[]
     assert s.messages[0].raw==text
 
-def test_other_message_survives_deep_failure():
-    text='['*2000+'0'+']'*2000+'\n{"id":2,"method":"tools/list"}'
+def test_other_message_survives_deep_failure(rejected_nesting_depth):
+    text='['*rejected_nesting_depth+'0'+']'*rejected_nesting_depth+'\n{"id":2,"method":"tools/list"}'
     fs=diagnose(parse_text(text))
     assert any(f.code=='TOOLS_LIST_HANG' for f in fs)
 
@@ -36,8 +36,8 @@ def test_ordinary_nested_params_still_pair(prefix):
     assert s.response_for(s.requests()[0]).line_no==2
 
 @pytest.mark.parametrize('mode',['text','json'])
-def test_deep_capture_cli_diagnostic(tmp_path,capsys,mode):
+def test_deep_capture_cli_diagnostic(tmp_path,capsys,mode,rejected_nesting_depth):
     from mcptriage.cli import main
-    p=tmp_path/'capture.jsonl';p.write_text('['*2000+'0'+']'*2000)
+    p=tmp_path/'capture.jsonl';p.write_text('['*rejected_nesting_depth+'0'+']'*rejected_nesting_depth)
     assert main(['diagnose',str(p),'--format',mode])==1
     assert 'NO_PROTOCOL_MESSAGES' in capsys.readouterr().out
