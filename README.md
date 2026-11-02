@@ -350,3 +350,9 @@ An empty capture or input containing no recognized JSON-RPC messages produces
 `NO_PROTOCOL_MESSAGES` rather than "no problems found". Invalid-ID messages keep
 their own finding. A recognized message is not proof of a complete or valid
 session: capture-quality flags and the other supported checks still apply.
+
+If the Python runtime rejects an oversized decimal integer during JSON decoding,
+the original line stays unparsed instead of crashing the capture. Other lines
+continue through diagnosis. The parser does not search inside that rejected
+object for a nested substitute message. Runtime integer limits vary; this does
+not add arbitrary-size integer support or silently coerce the number.
