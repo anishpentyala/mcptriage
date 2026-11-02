@@ -309,3 +309,11 @@ Malformed JSON-RPC error codes and missing/non-string `tools/call` names produce
 code-specific/schema explanation. Integral numeric error codes retain their
 mathematical integer meaning; booleans and numeric strings are not coerced.
 Other supported checks keep running. These checks are not a full message validator.
+
+Known credential forms in tool error content are masked before shortening the
+`TOOL_CALL_FAILED` explanation, including long URL userinfo and quoted JSON
+values whose closing delimiter would otherwise be clipped. This uses the same
+best-effort masker and does not cover arbitrary secret formats.
+The matcher also covers one JSON-string layer of escaped key/value quotes for
+its listed credential keys. Arbitrary encoding layers and escaped characters
+inside secret values are not a complete masking guarantee.
