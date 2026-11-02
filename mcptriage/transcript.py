@@ -137,10 +137,26 @@ class Session:
     def tools_by_name(self, before_line: Optional[int] = None) -> Dict[str, Dict[str, Any]]:
         """Tool name -> inputSchema from tools/list results seen so far."""
         tools: Dict[str, Dict[str, Any]] = {}
-        for m in self.messages:
-            if before_line is not None and m.line_no >= before_line:
-                break
+        visible = [m for m in self.messages
+                   if before_line is None or m.line_no < before_line]
+        # Untagged bidirectional captures cannot disambiguate reused IDs.
+        # Do not guess which request owns a schema, even across methods.
+        requests: Dict[Any, List[Message]] = {}
+        for m in visible:
+            if m.kind == _REQUEST:
+                requests.setdefault((type(m.msg_id), m.msg_id), []).append(m)
+        consumed = set()
+        for m in visible:
             if m.kind != _RESPONSE:
+                continue
+            key = (type(m.msg_id), m.msg_id)
+            matches = requests.get(key, [])
+            if len(matches) != 1 or matches[0].line_no >= m.line_no:
+                continue
+            if key in consumed:
+                continue
+            consumed.add(key)
+            if matches[0].method != "tools/list" or m.error() is not None:
                 continue
             result = m.result()
             if isinstance(result, dict) and isinstance(result.get("tools"), list):
