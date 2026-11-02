@@ -154,7 +154,7 @@ def _json_equal(left: Any, right: Any) -> bool:
 
 def _enum_summary(enum: list) -> str:
     try:
-        return _clip(str(enum))
+        return _clip(redact(str(enum)))
     except RecursionError:
         return "the declared enum (%d deeply nested value(s))" % len(enum)
 
