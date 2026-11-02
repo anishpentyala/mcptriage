@@ -278,3 +278,13 @@ subset, not a complete JSON Schema validator or support for arbitrary schemas.
 Sources: [JSON Schema validation](https://json-schema.org/draft/2020-12/json-schema-validation)
 (required and enum) and [JSON Schema core](https://json-schema.org/draft/2020-12/json-schema-core)
 (instance equality), checked 2026-11-02.
+
+### Report masking
+
+Text and JSON reports apply the existing best-effort credential masker to their
+source label and free-text finding fields. Stdio pollution samples are masked
+before clipping. Finding objects are not changed by rendering. This closes known
+paths that copied Authorization/Bearer headers, token-like JSON/query values or
+URL credentials into reports. It is not a complete sanitizer: unknown formats,
+ordinary text and arbitrary tool output may still contain sensitive data. Review
+reports and captures before sharing them; no raw log is made safe by this guard.

@@ -178,7 +178,7 @@ def rule_stdio_pollution(session: Session, strict: bool = False) -> List[Finding
         ]
         if not noise:
             return []
-    samples = "; ".join("line %d: %s" % (m.line_no, _clip(m.raw, 80)) for m in noise[:3])
+    samples = "; ".join("line %d: %s" % (m.line_no, _clip(redact(m.raw), 80)) for m in noise[:3])
     return [Finding(
         "STDIO_POLLUTION", HIGH,
         "%d line(s) in the stream are not JSON-RPC messages" % len(noise),
