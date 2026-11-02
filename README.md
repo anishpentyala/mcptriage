@@ -180,8 +180,8 @@ claim about everything that exists.
   mid-session can produce orphan-response noise and tentative absence-based
   findings (flagged as such).
 - Enum value comparison uses a non-recursive structural check, including nested
-  JSON arrays and objects. Very deep mismatched enum values use a bounded
-  explanation instead of rendering the entire value. This does not expand the
+  JSON arrays and objects. Long or deeply nested mismatched enum values use a bounded
+  explanation that omits values instead of displaying a truncated prefix. This does not expand the
   schema keywords the validator supports.
 - The argument validator checks the top level of `inputSchema` (required,
   primitive types, enum, additionalProperties, boolean subschemas). Unknown or
