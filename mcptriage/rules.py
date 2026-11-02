@@ -154,7 +154,10 @@ def _json_equal(left: Any, right: Any) -> bool:
 
 def _enum_summary(enum: list) -> str:
     try:
-        return _clip(redact(str(enum)))
+        summary = redact(str(enum))
+        if len(summary) > 160:
+            return "the declared enum (%d value(s); details omitted)" % len(enum)
+        return summary
     except RecursionError:
         return "the declared enum (%d deeply nested value(s))" % len(enum)
 
