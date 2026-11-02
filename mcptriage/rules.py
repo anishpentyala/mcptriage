@@ -8,6 +8,7 @@ are deterministic: same transcript, same findings.
 from __future__ import annotations
 
 import re
+import json
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
@@ -40,7 +41,7 @@ def _usable_error_code(value: Any) -> bool:
     return (type(value) is int or (type(value) is float and value.is_integer()))
 
 
-def _looks_auth(err, raw_lower: str) -> bool:
+def _looks_auth(err) -> bool:
     """True when a JSON-RPC error response carries an authentication rejection.
 
     JSON-RPC error codes and HTTP status codes are different layers; a 401 here
@@ -49,7 +50,9 @@ def _looks_auth(err, raw_lower: str) -> bool:
     """
     if err.get("code") == 401:
         return True
-    return bool(_401_RE.search(raw_lower)) or "unauthorized" in raw_lower or "unauthenticated" in raw_lower
+    error_text = json.dumps(err, ensure_ascii=True).lower()
+    return (bool(_401_RE.search(error_text)) or "unauthorized" in error_text
+            or "unauthenticated" in error_text)
 
 
 _URL_USERINFO_RE = re.compile(r"(://)[^/@\s:]+:[^/@\s]+@")
@@ -305,8 +308,7 @@ def rule_tools_list_error(session: Session, strict: bool = False) -> List[Findin
         err = resp.error()
         if err is None:
             continue
-        raw = resp.raw.lower()
-        if _looks_auth(err, raw):
+        if _looks_auth(err):
             continue  # AUTH_ON_LIST reports this response with a sharper diagnosis
         code = err.get("code")
         if not _usable_error_code(code):
@@ -428,8 +430,7 @@ def rule_auth_on_list(session: Session, strict: bool = False) -> List[Finding]:
         if resp is None:
             continue
         err = resp.error()
-        raw = resp.raw.lower()
-        if err is not None and _looks_auth(err, raw):
+        if err is not None and _looks_auth(err):
             findings.append(Finding(
                 "AUTH_ON_LIST", HIGH,
                 "tools/list was rejected for authentication while initialize succeeded",
@@ -805,7 +806,18 @@ _ABSENCE_BASED = {"TOOLS_LIST_HANG", "MISSING_TOOLS_CAPABILITY", "PAGINATION_INC
 _CAPTURE_FLAGS = {"CAPTURE_INCOMPLETE", "DIRECTION_AMBIGUOUS"}
 
 
+class _DiagnosisSession(Session):
+    """One diagnosis pass shares an ownership index, never cached on caller state."""
+    def __init__(self, session: Session):
+        super().__init__(messages=session.messages)
+        self._pairs = session.response_pairs()
+
+    def response_for(self, request: Message) -> Optional[Message]:
+        return self._pairs.get(id(request))
+
+
 def diagnose(session: Session, strict_stdio: bool = False) -> List[Finding]:
+    session = _DiagnosisSession(session)
     findings: List[Finding] = []
     for rule in ALL_RULES:
         findings.extend(rule(session, strict_stdio))
