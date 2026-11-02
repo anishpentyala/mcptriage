@@ -116,11 +116,23 @@ class Session:
         """The first response after `request` carrying its id."""
         if request.kind != _REQUEST or type(request.msg_id) not in (str, int):
             return None
+        pending = {}
+        ambiguous = set()
         for m in self.messages:
-            if m.line_no <= request.line_no:
+            if m.kind not in (_REQUEST, _RESPONSE):
                 continue
-            if m.kind == _RESPONSE and type(m.msg_id) is type(request.msg_id) and m.msg_id == request.msg_id:
-                return m
+            key = (type(m.msg_id), m.msg_id)
+            if m.kind == _REQUEST:
+                if key in pending:
+                    # An untagged capture cannot tell which side owns this ID.
+                    # Later traffic cannot prove that all overlapping requests
+                    # completed, so do not re-enable this ID within the capture.
+                    ambiguous.add(key)
+                pending[key] = m
+            elif key not in ambiguous:
+                owner = pending.pop(key, None)
+                if owner is request:
+                    return m
         return None
 
     def orphan_responses(self) -> List[Message]:
