@@ -328,3 +328,9 @@ For supported `type: integer` argument checks, integral JSON numbers such as
 `1`, `1.0` and `1e0` satisfy the type. Booleans, numeric strings and fractional
 numbers do not. This does not add arbitrary-precision decoding for argument
 values or turn the checker into a full JSON Schema validator.
+
+The missing initialized-notification check requires a paired object-valued
+initialize result without an error, and a notification must occur after that
+response to count as completion. Error responses and malformed result shapes
+are not described as successful initialization. This does not fully validate
+the initialize result schema or distinguish reconnect sessions in untagged logs.
