@@ -36,6 +36,10 @@ def _clip(text: str, limit: int = 160) -> str:
 _401_RE = re.compile(r"\b401\b")
 
 
+def _usable_error_code(value: Any) -> bool:
+    return (type(value) is int or (type(value) is float and value.is_integer()))
+
+
 def _looks_auth(err, raw_lower: str) -> bool:
     """True when a JSON-RPC error response carries an authentication rejection.
 
@@ -284,6 +288,8 @@ def rule_tools_list_error(session: Session, strict: bool = False) -> List[Findin
         if _looks_auth(err, raw):
             continue  # AUTH_ON_LIST reports this response with a sharper diagnosis
         code = err.get("code")
+        if not _usable_error_code(code):
+            continue
         detail, fix = _TOOLS_LIST_ERROR_DETAIL.get(
             code, ("tools/list returned JSON-RPC error %s" % code,
                    "Read the server log for this request id."))
@@ -548,11 +554,13 @@ def rule_tool_call_problems(session: Session, strict: bool = False) -> List[Find
         params = req.obj.get("params", {})
         if not isinstance(params, dict):
             continue  # no invented empty-object argument explanation
-        name = params.get("name", "?")
+        name = params.get("name")
+        if not isinstance(name, str):
+            continue
         args = params.get("arguments")
         schemas = session.tools_by_name(before_line=req.line_no)
         err = resp.error()
-        if err is not None and err.get("code") == -32602:
+        if err is not None and _usable_error_code(err.get("code")) and err.get("code") == -32602:
             detail = ""
             schema = schemas.get(name)
             if schema and isinstance(args, dict):
@@ -683,8 +691,38 @@ def rule_unusable_params(session: Session, strict: bool = False) -> List[Finding
        and not isinstance(message.obj["params"], dict)]
 
 
+def rule_unusable_error_code(session: Session, strict: bool = False) -> List[Finding]:
+    return [Finding(
+        "UNUSABLE_ERROR_CODE", HIGH,
+        "captured JSON-RPC error code is not an integer number",
+        _ev(message),
+        "This error code cannot select a JSON-RPC error explanation safely. "
+        "The original response is retained and code-specific details are omitted.",
+        "Check the emitting server or capture adapter and preserve an integer "
+        "error code without coercing strings, booleans, arrays or objects.",
+    ) for message in session.parsed
+       if message.error() is not None
+       and not _usable_error_code(message.error().get("code"))]
+
+
+def rule_unusable_tool_name(session: Session, strict: bool = False) -> List[Finding]:
+    return [Finding(
+        "UNUSABLE_TOOL_NAME", HIGH,
+        "captured tools/call name is missing or not a string",
+        _ev(message),
+        "A non-string or missing tool name cannot identify a tool schema. "
+        "The request is retained; tool-specific explanations are omitted.",
+        "Check the emitting client or capture adapter and preserve the exact "
+        "string tool name. Do not stringify malformed values.",
+    ) for message in session.requests("tools/call")
+       if isinstance(message.obj.get("params", {}), dict)
+       and not isinstance(message.obj.get("params", {}).get("name"), str)]
+
+
 ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
     rule_invalid_rpc_id,
+    rule_unusable_error_code,
+    rule_unusable_tool_name,
     rule_unusable_params,
     rule_stdio_pollution,
     rule_version_downshift,
