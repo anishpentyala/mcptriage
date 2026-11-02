@@ -8,7 +8,6 @@ are deterministic: same transcript, same findings.
 from __future__ import annotations
 
 import re
-import json
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
@@ -50,9 +49,23 @@ def _looks_auth(err) -> bool:
     """
     if err.get("code") == 401:
         return True
-    error_text = json.dumps(err, ensure_ascii=True).lower()
-    return (bool(_401_RE.search(error_text)) or "unauthorized" in error_text
-            or "unauthenticated" in error_text)
+    # A decoder may accept deeper values than json.dumps can encode. Walk
+    # JSON leaves and member names without recursive calls or re-encoding.
+    pending = [err]
+    while pending:
+        value = pending.pop()
+        if isinstance(value, dict):
+            pending.extend(value.keys())
+            pending.extend(value.values())
+        elif isinstance(value, list):
+            pending.extend(value)
+        elif isinstance(value, (str, int, float)) and not isinstance(value, bool):
+            text = str(value).lower()
+            if (_401_RE.search(text) or "unauthorized" in text
+                    or "unauthenticated" in text):
+                return True
+    return False
+
 
 
 _URL_USERINFO_RE = re.compile(r"(://)[^/@\s:]+:[^/@\s]+@")
