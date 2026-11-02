@@ -61,6 +61,11 @@ _URL_QUERY_RE = re.compile(
 _SECRET_JSON_RE = re.compile(
     r'("(?:authorization|api[-_]?key|access[-_]?token|refresh[-_]?token|token|secret|password|client[-_]?secret)"'
     r'\s*:\s*")([^"]+)(")', re.IGNORECASE)
+# One JSON-string layer is common in tools/call text content. Match its
+# escaped key/value quotes before evidence clipping removes the terminator.
+_SECRET_ESCAPED_JSON_RE = re.compile(
+    r'(\\"(?:authorization|api[-_]?key|access[-_]?token|refresh[-_]?token|token|secret|password|client[-_]?secret)\\"'
+    r'\s*:\s*\\")([^"\\]+)(\\")', re.IGNORECASE)
 _BEARER_RE = re.compile(r"(bearer\s+)\S+", re.IGNORECASE)
 _AUTH_HEADER_RE = re.compile(r"(authorization\s*[:=]\s*)\S+(\s+\S+)?", re.IGNORECASE)
 
@@ -69,6 +74,7 @@ def redact(text: str) -> str:
     """Best-effort masking of credential-looking values before they appear in
     any report. Not a complete sanitizer: unusual formats can slip through, so
     review any log before sharing it."""
+    text = _SECRET_ESCAPED_JSON_RE.sub(lambda m: m.group(1) + "***" + m.group(3), text)
     text = _SECRET_JSON_RE.sub(lambda m: m.group(1) + "***" + m.group(3), text)
     text = _BEARER_RE.sub(lambda m: m.group(1) + "***", text)
     text = _AUTH_HEADER_RE.sub(lambda m: m.group(1) + "***", text)
@@ -584,7 +590,7 @@ def rule_tool_call_problems(session: Session, strict: bool = False) -> List[Find
             if isinstance(content, list) and content:
                 first = content[0]
                 if isinstance(first, dict) and isinstance(first.get("text"), str):
-                    snippet = " First content: " + _clip(first["text"], 100)
+                    snippet = " First content: " + _clip(redact(first["text"]), 100)
             findings.append(Finding(
                 "TOOL_CALL_FAILED", MEDIUM,
                 "tools/call '%s' returned isError: true" % name,
