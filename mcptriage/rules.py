@@ -179,7 +179,9 @@ def rule_version_downshift(session: Session, strict: bool = False) -> List[Findi
         resp = session.response_for(req)
         if resp is None:
             continue
-        params = req.obj.get("params") or {}
+        params = req.obj.get("params", {})
+        if not isinstance(params, dict):
+            continue  # rule_unusable_params keeps the malformed evidence explicit
         offered = params.get("protocolVersion")
         result = resp.result()
         answered = result.get("protocolVersion") if isinstance(result, dict) else None
@@ -496,7 +498,9 @@ def rule_tool_call_problems(session: Session, strict: bool = False) -> List[Find
         resp = session.response_for(req)
         if resp is None:
             continue
-        params = req.obj.get("params") or {}
+        params = req.obj.get("params", {})
+        if not isinstance(params, dict):
+            continue  # no invented empty-object argument explanation
         name = params.get("name", "?")
         args = params.get("arguments")
         schemas = session.tools_by_name(before_line=req.line_no)
@@ -614,8 +618,27 @@ def rule_invalid_rpc_id(session: Session, strict: bool = False) -> List[Finding]
     ) for message in session.messages if message.kind == "invalid_id"]
 
 
+def rule_unusable_params(session: Session, strict: bool = False) -> List[Finding]:
+    return [Finding(
+        "UNUSABLE_PARAMS", HIGH,
+        "captured %s params are not an object" % message.method,
+        _ev(message),
+        "This rule expects object-valued params for initialize and tools/call. "
+        "The supplied value cannot be inspected safely; it is retained as "
+        "evidence, and method-specific parameter explanations are omitted. "
+        "This is not a complete request schema validator.",
+        "Check the emitting client or capture adapter and recapture the "
+        "request with object-valued params. Do not replace malformed values "
+        "with an empty object when investigating the original failure.",
+    ) for message in session.requests()
+       if message.method in ("initialize", "tools/call")
+       and "params" in message.obj
+       and not isinstance(message.obj["params"], dict)]
+
+
 ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
     rule_invalid_rpc_id,
+    rule_unusable_params,
     rule_stdio_pollution,
     rule_version_downshift,
     rule_missing_tools_capability,
