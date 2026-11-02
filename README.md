@@ -303,3 +303,9 @@ pairs and other IDs are unaffected. `DIRECTION_AMBIGUOUS` keeps absence-based
 conclusions tentative. Delayed duplicate responses remain indistinguishable
 from a response to a later sequential reuse; use distinct IDs or direction-tagged
 captures when that distinction matters.
+
+Malformed JSON-RPC error codes and missing/non-string `tools/call` names produce
+`UNUSABLE_ERROR_CODE` or `UNUSABLE_TOOL_NAME` instead of a crash or a guessed
+code-specific/schema explanation. Integral numeric error codes retain their
+mathematical integer meaning; booleans and numeric strings are not coerced.
+Other supported checks keep running. These checks are not a full message validator.
