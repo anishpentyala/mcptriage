@@ -41,3 +41,19 @@ def test_deep_capture_cli_diagnostic(tmp_path,capsys,mode,rejected_nesting_depth
     p=tmp_path/'capture.jsonl';p.write_text('['*rejected_nesting_depth+'0'+']'*rejected_nesting_depth)
     assert main(['diagnose',str(p),'--format',mode])==1
     assert 'NO_PROTOCOL_MESSAGES' in capsys.readouterr().out
+
+
+@pytest.mark.parametrize('prefix',['','log: '])
+def test_real_decoder_accepted_nesting_is_not_forcibly_rejected(prefix):
+    # No rejection fixture here: accept exactly what this runtime can decode.
+    text='{"id":1,"method":"tools/list","params":{"nested":'+'['*2000+'0'+']'*2000+'}}'
+    try:
+        json.loads(text)
+    except RecursionError:
+        expected='unparsed'
+    else:
+        expected='request'
+    session=parse_text(prefix+text)
+    assert len(session.messages)==1
+    assert session.messages[0].kind==expected
+    assert session.messages[0].raw==prefix+text
