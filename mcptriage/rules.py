@@ -81,7 +81,7 @@ _SECRET_JSON_RE = re.compile(
 # escaped key/value quotes before evidence clipping removes the terminator.
 _SECRET_ESCAPED_JSON_RE = re.compile(
     r'(\\"(?:authorization|api[-_]?key|access[-_]?token|refresh[-_]?token|token|secret|password|client[-_]?secret)\\"'
-    r'\s*:\s*\\")((?:\\\\(?:\\")?|[^"\\])+)(\\")', re.IGNORECASE)
+    r'\s*:\s*\\")((?:\\\\\\\\|\\\\\\"|\\\\[^"\\]|[^"\\])*)(\\")', re.IGNORECASE)
 _BEARER_RE = re.compile(r"(bearer\s+)\S+", re.IGNORECASE)
 _AUTH_HEADER_RE = re.compile(r"(authorization\s*[:=]\s*)\S+(\s+\S+)?", re.IGNORECASE)
 
