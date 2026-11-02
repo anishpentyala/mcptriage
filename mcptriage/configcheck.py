@@ -44,6 +44,17 @@ def check_config_text(text: str, path: str = "<config>") -> List[Finding]:
             "Fix the JSON syntax at the reported position (common causes: trailing "
             "commas, unquoted backslashes in Windows paths).",
         )]
+    except (ValueError, RecursionError):
+        return [Finding(
+            "CFG_JSON_LIMIT", HIGH,
+            "config JSON exceeds the runtime decoder's supported limits",
+            path,
+            "The Python runtime could not decode this config because of an integer "
+            "conversion or nesting limit. This is not proof that its JSON syntax "
+            "is invalid, and no server entries could be checked.",
+            "Reduce extreme integer literals or nesting, check that this is the "
+            "intended client config, and run the check again. No values are coerced.",
+        )]
     key, servers = _servers_from(obj)
     if servers is None:
         return [Finding(
