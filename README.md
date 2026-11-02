@@ -265,3 +265,16 @@ concurrent list contexts that share a cursor in an untagged log.
 Source: [MCP pagination](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination),
 checked 2026-11-02. The specification calls cursors opaque string tokens and
 explicitly says an empty string must not be treated as the end of results.
+
+### Safe schema evidence
+
+The supported top-level `required` check uses only arrays of unique strings.
+Malformed values produce `SCHEMA_ISSUES` and do not supply missing-argument
+explanations. Other supported checks still run. Enum comparison respects JSON
+types recursively: boolean `true` does not equal number `1`, including inside
+arrays or objects; numerically equal `1` and `1.0` do match. This is a targeted
+subset, not a complete JSON Schema validator or support for arbitrary schemas.
+
+Sources: [JSON Schema validation](https://json-schema.org/draft/2020-12/json-schema-validation)
+(required and enum) and [JSON Schema core](https://json-schema.org/draft/2020-12/json-schema-core)
+(instance equality), checked 2026-11-02.
