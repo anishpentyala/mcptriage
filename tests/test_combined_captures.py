@@ -47,9 +47,9 @@ def test_large_clean_capture_has_no_false_diagnoses(tmp_path,capsys,mode):
     else:assert 'no problems found' in out
 
 @pytest.mark.parametrize('mode',['text','json'])
-def test_decoder_failure_between_valid_messages_keeps_later_hang(tmp_path,capsys,mode):
+def test_decoder_failure_between_valid_messages_keeps_later_hang(tmp_path,capsys,mode,rejected_nesting_depth):
     p=tmp_path/'damaged.jsonl'
-    p.write_text(lines(opening())+'\n'+'['*2000+'0'+']'*2000+'\n'+
+    p.write_text(lines(opening())+'\n'+'['*rejected_nesting_depth+'0'+']'*rejected_nesting_depth+'\n'+
                  '{"id":401,"method":"tools/list"}')
     assert main(['diagnose',str(p),'--format',mode])==1
     out=capsys.readouterr().out
