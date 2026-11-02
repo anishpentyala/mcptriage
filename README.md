@@ -163,7 +163,9 @@ claim about everything that exists.
 ## Development
 
 ```bash
-python -m unittest discover -s tests   # 88 tests, stdlib only
+python -m pip install . pytest
+python -m pytest -q                   # full suite, including parametrized controls
+python -m unittest discover -s tests # original stdlib-only subset
 ```
 
 The `examples/` folder holds synthetic transcripts for the main failure modes
@@ -173,8 +175,9 @@ produce zero findings, and the CLI end-to-end tests enforce that.
 
 ## Authorship
 
-Built by Anish Pentyala with AI coding assistance (design direction, testing,
-and review by the author). All examples and fixtures are synthetic; no real
+Developed with AI assistance for implementation, tests, documentation and review.
+Anish Pentyala sets project direction; this does not imply he personally wrote,
+ran or reviewed every change. All examples and fixtures are synthetic; no real
 user data is included.
 
 ## Sources
