@@ -79,8 +79,31 @@ def check_config_text(text: str, path: str = "<config>") -> List[Finding]:
 
 def _check_server(name: str, spec: Dict[str, Any], path: str, base_dir: str) -> List[Finding]:
     findings: List[Finding] = []
-    command = spec.get("command")
-    url = spec.get("url")
+    # Validate field shapes independently of truthiness. Never echo malformed
+    # values, which may contain credentials, or use them as endpoint evidence.
+    bad_fields = []
+    for field in ("command", "url", "envFile"):
+        if field in spec and not isinstance(spec[field], str):
+            bad_fields.append(field)
+    if "args" in spec and (not isinstance(spec["args"], list)
+                           or not all(isinstance(arg, str) for arg in spec["args"])):
+        bad_fields.append("args")
+    if "env" in spec and (not isinstance(spec["env"], dict)
+                          or not all(isinstance(value, str) for value in spec["env"].values())):
+        bad_fields.append("env")
+    for field in bad_fields:
+        findings.append(Finding(
+            "CFG_SHAPE", HIGH if field in ("command", "url") else MEDIUM,
+            "server '%s' %s has an unusable field type" % (name, field),
+            "%s: '%s' field '%s'" % (path, name, field),
+            "command, url and envFile must be strings; args must contain only "
+            "strings; env must map variable names to string values. "
+            "The malformed value is not used as launch or endpoint evidence.",
+            "Check the client's config format and fix the field's JSON type "
+            "without converting secret values into diagnostic text.",
+        ))
+    command = spec.get("command") if isinstance(spec.get("command"), str) else None
+    url = spec.get("url") if isinstance(spec.get("url"), str) else None
     stype = spec.get("type")
     if command and url:
         findings.append(Finding(
@@ -109,15 +132,6 @@ def _check_server(name: str, spec: Dict[str, Any], path: str, base_dir: str) -> 
         ))
     if isinstance(command, str) and command:
         findings.extend(_check_command(name, command, path))
-    args = spec.get("args")
-    if args is not None and not isinstance(args, list):
-        findings.append(Finding(
-            "CFG_SHAPE", MEDIUM,
-            "server '%s' args is not an array" % name,
-            "%s: '%s'" % (path, name),
-            "args must be an array of strings; some clients drop the server otherwise.",
-            "Write args as a JSON array, e.g. [\"-y\", \"some-server\"].",
-        ))
     env = spec.get("env")
     if isinstance(env, dict):
         for env_key, env_val in env.items():
