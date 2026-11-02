@@ -61,3 +61,20 @@ def test_integral_number_error_code_retains_mathematical_integer_semantics():
                {'id':1,'error':{'code':-32602.0}})
     assert any(f.code=='TOOL_CALL_ARG_MISMATCH' for f in fs)
     assert not any(f.code=='UNUSABLE_ERROR_CODE' for f in fs)
+
+
+@pytest.mark.parametrize('response',[{'error':{'code':-32602}}, {'result':{'isError':True}}, None])
+def test_absent_call_params_still_diagnoses_missing_name(response):
+    rows=[{'id':1,'method':'tools/call'}]
+    if response is not None:
+        rows.append(dict(id=1,**response))
+    fs=inspect(*rows)
+    assert any(f.code=='UNUSABLE_TOOL_NAME' for f in fs)
+    assert not any(f.code=='UNUSABLE_PARAMS' for f in fs)
+
+
+@pytest.mark.parametrize('params',[None,[],True,1,'bad'])
+def test_explicit_nonobject_params_keeps_only_its_own_shape_diagnosis(params):
+    fs=inspect({'id':1,'method':'tools/call','params':params}, {'id':1,'error':{'code':-32602}})
+    assert any(f.code=='UNUSABLE_PARAMS' for f in fs)
+    assert not any(f.code=='UNUSABLE_TOOL_NAME' for f in fs)
