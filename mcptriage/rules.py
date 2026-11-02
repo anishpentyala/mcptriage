@@ -486,6 +486,32 @@ def rule_unusable_cursor(session: Session, strict: bool = False) -> List[Finding
     return findings
 
 
+def rule_unusable_tools_catalog(session: Session, strict: bool = False) -> List[Finding]:
+    findings = []
+    for req in session.requests("tools/list"):
+        resp = session.response_for(req)
+        if resp is None or resp.error() is not None:
+            continue
+        result = resp.result()
+        problem = None
+        if not isinstance(result, dict) or not isinstance(result.get("tools"), list):
+            problem = "tools/list result must be an object with a tools array"
+        elif any(not isinstance(tool, dict) or not isinstance(tool.get("name"), str)
+                 for tool in result["tools"]):
+            problem = "tools/list entries must be objects with string names"
+        if problem is not None:
+            findings.append(Finding(
+                "UNUSABLE_TOOLS_CATALOG", HIGH, problem, _ev(resp),
+                "This paired tools/list response cannot establish a usable tool "
+                "catalog. Malformed entries are not treated as valid tool definitions. "
+                "Other supported checks still run; this is not a full result validator.",
+                "Check the emitting server or capture adapter. Preserve the original "
+                "response and return an object with a tools array containing named "
+                "tool definitions and their input schemas.",
+            ))
+    return findings
+
+
 def rule_schema_issues(session: Session, strict: bool = False) -> List[Finding]:
     problems = []
     for req in session.requests("tools/list"):
@@ -746,6 +772,7 @@ ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
     rule_auth_on_list,
     rule_pagination_incomplete,
     rule_unusable_cursor,
+    rule_unusable_tools_catalog,
     rule_schema_issues,
     rule_orphan_responses,
     rule_era_mix,

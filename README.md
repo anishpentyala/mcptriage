@@ -95,6 +95,7 @@ Transcript rules (input: captured JSON-RPC exchange):
 | ERA_MIX | medium | 2025 handshake mixed with 2026-era markers |
 | TOOL_CALL_FAILED | medium | call returns `isError: true` (server-side, not protocol) |
 | MISSING_INITIALIZED | low | no `notifications/initialized` after initialize |
+| UNUSABLE_TOOLS_CATALOG | high | malformed tools/list result, tools array or entry/name shape |
 | SCHEMA_ISSUES | low | missing/invalid `inputSchema` in listed tools |
 | ORPHAN_RESPONSES | low | responses with ids no request claims (broken framing) |
 | INVALID_RPC_ID | high | null, boolean, fractional, array or object IDs that cannot pair safely |
@@ -338,3 +339,8 @@ initialize result without an error, and a notification must occur after that
 response to count as completion. Error responses and malformed result shapes
 are not described as successful initialization. This does not fully validate
 the initialize result schema or distinguish reconnect sessions in untagged logs.
+
+Malformed paired non-error `tools/list` results produce `UNUSABLE_TOOLS_CATALOG`
+when the result is not an object with a tools array, or an entry is not an object
+with a string name. Other checks continue. This does not validate every field,
+name convention, schema or JSON-RPC result envelope.
