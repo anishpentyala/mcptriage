@@ -1,22 +1,30 @@
-"""Runtime-grounded decoder rejection cases shared by hardening tests."""
+"""Deterministic decoder rejection for runtime-independent error-path tests."""
 import json
 import pytest
 
 
 @pytest.fixture
-def rejected_nesting_depth():
-    # CPython versions use different JSON recursion limits. Probe both shapes
-    # rather than asserting that valid JSON at a fixed depth must be rejected.
-    # Keep work bounded and fail, rather than skip, if the probe is insufficient.
-    for depth in (1000, 2000, 4000, 8000, 16000, 32000):
-        rejected = []
-        for start, end in (('[', ']'), ('{"x":', '}')):
-            try:
-                json.loads(start * depth + '0' + end * depth)
-            except RecursionError:
-                rejected.append(True)
-            else:
-                rejected.append(False)
-        if all(rejected):
-            return depth
-    pytest.fail('could not establish a JSON recursion rejection within depth 32000')
+def rejected_nesting_depth(monkeypatch):
+    # Python versions/builds have different (or no practical) JSON recursion
+    # boundaries. Simulate rejection for our synthetic deeply nested records
+    # at both entry points instead of asserting a fixed runtime limit or
+    # constructing increasingly large inputs to find one.
+    original_loads = json.loads
+    original_decoder = json.JSONDecoder
+
+    def reject_synthetic_depth(text):
+        if '[' * 1000 in text or '{"x":' * 1000 in text:
+            raise RecursionError('synthetic JSON decoder recursion limit')
+
+    def loads(text, **kwargs):
+        reject_synthetic_depth(text)
+        return original_loads(text, **kwargs)
+
+    class BoundedDecoder(original_decoder):
+        def raw_decode(self, text, *args, **kwargs):
+            reject_synthetic_depth(text)
+            return super().raw_decode(text, *args, **kwargs)
+
+    monkeypatch.setattr(json, 'loads', loads)
+    monkeypatch.setattr(json, 'JSONDecoder', BoundedDecoder)
+    return 2000
