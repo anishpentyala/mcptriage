@@ -305,9 +305,8 @@ def rule_tools_list_error(session: Session, strict: bool = False) -> List[Findin
 
 def rule_tools_list_hang(session: Session, strict: bool = False) -> List[Finding]:
     findings = []
-    answered = {m.msg_id for m in session.parsed if m.kind == "response"}
     for req in session.requests("tools/list"):
-        if req.msg_id in answered:
+        if session.response_for(req) is not None:
             continue
         findings.append(Finding(
             "TOOLS_LIST_HANG", HIGH,
@@ -624,11 +623,11 @@ def rule_direction_ambiguous(session: Session, strict: bool = False) -> List[Fin
     duplicated = False
     for m in session.messages:
         if m.kind == "request":
-            if m.msg_id in open_ids:
+            if (type(m.msg_id), m.msg_id) in open_ids:
                 duplicated = True
-            open_ids.add(m.msg_id)
+            open_ids.add((type(m.msg_id), m.msg_id))
         elif m.kind == "response":
-            open_ids.discard(m.msg_id)
+            open_ids.discard((type(m.msg_id), m.msg_id))
     if not server_methods and not duplicated:
         return []
     parts = []
