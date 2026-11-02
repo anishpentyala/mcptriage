@@ -73,15 +73,22 @@ class Message:
     msg_id: Optional[Any] = None
     extracted: bool = False  # JSON was embedded inside a larger log line
 
+    def usable_response(self) -> bool:
+        """A result or object-valued error, never both. Not full RPC validation."""
+        return (self.kind == _RESPONSE and isinstance(self.obj, dict)
+                and (("result" in self.obj and "error" not in self.obj)
+                     or ("result" not in self.obj
+                         and isinstance(self.obj.get("error"), dict))))
+
     def error(self) -> Optional[Dict[str, Any]]:
-        if self.kind == _RESPONSE and isinstance(self.obj, dict):
+        if self.usable_response():
             err = self.obj.get("error")
             if isinstance(err, dict):
                 return err
         return None
 
     def result(self) -> Optional[Any]:
-        if self.kind == _RESPONSE and isinstance(self.obj, dict):
+        if self.usable_response():
             return self.obj.get("result")
         return None
 
