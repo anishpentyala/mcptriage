@@ -48,3 +48,34 @@ def test_long_escaped_quote_secret_masks_before_evidence_clip(tmp_path,capsys,mo
     assert main(['diagnose',str(p),'--format',mode])==0
     out=capsys.readouterr().out
     assert 'TOOL_CALL_FAILED' in out and 'PRIVATE_SUFFIX' not in out
+
+
+@pytest.mark.parametrize('slashes',range(1,9))
+@pytest.mark.parametrize('key',['token','password','api_key','authorization'])
+def test_encoded_trailing_backslashes_cannot_consume_next_credential(key,slashes):
+    inner={key:'head'+('\\'*slashes),'client_secret':'PRIVATE_SUFFIX','status':'keep'}
+    output=redact(json.dumps({'text':json.dumps(inner),'outer':'preserve'}))
+    assert 'PRIVATE_SUFFIX' not in output
+    outer=json.loads(output)
+    assert outer['outer']=='preserve'
+    assert json.loads(outer['text'])=={key:'***','client_secret':'***','status':'keep'}
+
+
+@pytest.mark.parametrize('slashes',range(1,9))
+@pytest.mark.parametrize('suffix',['','"','\n','a'])
+def test_encoded_escape_tokens_preserve_following_noncredential_metadata(slashes,suffix):
+    text=json.dumps({'text':json.dumps({'token':'head'+('\\'*slashes)+suffix,
+                                      'status':'keep','array':[1,True,None]})})
+    assert json.loads(json.loads(redact(text))['text'])=={
+        'token':'***','status':'keep','array':[1,True,None]}
+
+
+@pytest.mark.parametrize('render',[render_text,render_json])
+@pytest.mark.parametrize('slashes',[1,2,3])
+def test_encoded_trailing_backslashes_in_actual_error_evidence(render,slashes):
+    secret=json.dumps({'token':'head'+('\\'*slashes),'password':'PRIVATE_SUFFIX','status':'keep'})
+    rows=[{'id':1,'method':'tools/call','params':{'name':'x'}},
+          {'id':1,'result':{'isError':True,'content':[{'type':'text','text':secret}]}}]
+    findings=diagnose(parse_text('\n'.join(json.dumps(r) for r in rows)))
+    output=render(findings,'<stdin>')
+    assert 'TOOL_CALL_FAILED' in output and 'PRIVATE_SUFFIX' not in output
