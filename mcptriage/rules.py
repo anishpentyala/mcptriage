@@ -170,6 +170,21 @@ def _looks_http(message: Message) -> bool:
     return bool(_HTTP_LINE.match(message.raw.strip()))
 
 
+def rule_no_protocol_messages(session: Session, strict: bool = False) -> List[Finding]:
+    if any(m.kind != "unparsed" for m in session.messages):
+        return []  # invalid-ID messages have their own explicit diagnostic
+    evidence = "; ".join(_ev(m) for m in session.messages[:3])
+    return [Finding(
+        "NO_PROTOCOL_MESSAGES", HIGH,
+        "capture contains no recognized JSON-RPC messages",
+        evidence or "capture is empty or contains only whitespace",
+        "There is no protocol exchange to diagnose. An empty file, unrelated log "
+        "or unsupported capture format is not evidence that the MCP session is healthy.",
+        "Capture JSON-RPC traffic from the client or server, check the file or stdin "
+        "input, and recapture from startup. This tool expects line-oriented messages.",
+    )]
+
+
 def rule_stdio_pollution(session: Session, strict: bool = False) -> List[Finding]:
     noise = session.unparsed
     if not noise:
@@ -761,6 +776,7 @@ ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
     rule_unusable_error_code,
     rule_unusable_tool_name,
     rule_unusable_params,
+    rule_no_protocol_messages,
     rule_stdio_pollution,
     rule_version_downshift,
     rule_missing_tools_capability,
