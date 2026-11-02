@@ -48,6 +48,16 @@ mcptriage diagnose session.jsonl --stdio        # strict: every non-JSON line is
 mcptriage diagnose session.jsonl --format json  # machine-readable, for CI
 ```
 
+Try the synthetic conflicting-response example:
+
+```bash
+mcptriage diagnose examples/conflicting-response.jsonl
+```
+
+It reports `UNUSABLE_RESPONSE` with exit code 1: a response containing both
+`result` and `error` cannot establish an empty catalog or a protocol error.
+The capture is synthetic and contains no credentials.
+
 Check a client config (Claude Desktop / Claude Code `mcpServers`, VS Code
 `servers` shapes):
 
@@ -100,6 +110,7 @@ Transcript rules (input: captured JSON-RPC exchange):
 | SCHEMA_ISSUES | low | missing/invalid `inputSchema` in listed tools |
 | ORPHAN_RESPONSES | low | responses with ids no request claims (broken framing) |
 | INVALID_RPC_ID | high | null, boolean, fractional, array or object IDs that cannot pair safely |
+| UNUSABLE_RESPONSE | high | conflicting result/error members or a non-object error payload |
 
 Config rules (input: client config file): invalid JSON with position, missing
 or empty servers map, entries with neither/both of `command` and `url`,
@@ -154,6 +165,11 @@ claim about everything that exists.
 - Heuristic, not spec-complete: rules cover documented recurring failure
   modes, not every possible fault. Rules are written against the protocol
   revisions cited in Sources; newer revisions may change behavior.
+- Responses with both `result` and `error`, or a non-object `error`, are
+  reported as `UNUSABLE_RESPONSE`. They cannot establish successful startup,
+  a tool catalog, or a method-specific failure. Their chronological ownership
+  is preserved, so a malformed reply is not called a missing reply. This does
+  not validate every response field.
 - Schema-shape diagnostics require a chronologically paired, non-error
   `tools/list` response. A payload merely containing a `tools` field, an orphan
   response or an ambiguous ID exchange is not enough to attribute a schema
@@ -192,6 +208,9 @@ user data is included.
 ## Sources
 
 Protocol behavior is grounded in the official specification (primary):
+
+- JSON-RPC 2.0, Response object (exclusive result/error, object-valued error):
+  https://www.jsonrpc.org/specification
 
 - MCP specification 2025-11-25, Lifecycle (version negotiation, `initialized`
   notification): https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle
