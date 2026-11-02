@@ -214,6 +214,14 @@ def parse_text(text: str) -> Session:
                     break
                 except json.JSONDecodeError:
                     continue
+                except ValueError:
+                    # Integer conversion limits are not framing errors. Do not
+                    # search deeper and invent traffic from a nested object.
+                    break
+        except ValueError:
+            # The runtime may bound decimal integer decoding. Preserve the
+            # original line as unparsed instead of aborting the whole capture.
+            pass
         if obj is None:
             session.messages.append(Message(line_no, raw_line.rstrip("\n"), None, _UNPARSED))
             continue
