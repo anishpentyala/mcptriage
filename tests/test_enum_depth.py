@@ -118,3 +118,20 @@ def test_enum_explanation_masks_known_secret_before_clipping(mode):
     output=(render_json if mode=='json' else render_text)(fs,'synthetic')
     assert 'SYNTHETIC_PRIVATE_SUFFIX' not in output
     assert '***' in output
+
+
+@pytest.mark.parametrize('key',['token','password','api_key','authorization'])
+@pytest.mark.parametrize('escape',['quote"','backslash\\'])
+@pytest.mark.parametrize('mode',['text','json'])
+def test_long_escaped_enum_secret_is_not_partially_displayed(key,escape,mode):
+    from mcptriage.report import render_text,render_json
+    secret=escape+'SYNTHETIC_ENUM_CANARY'*50
+    allowed=json.dumps({key:secret,'version':'next'})
+    rows=[{'id':1,'method':'tools/list'},
+          {'id':1,'result':{'tools':[{'name':'x','inputSchema':{'properties':{'arg':{'enum':[allowed]}}}}]}},
+          {'id':2,'method':'tools/call','params':{'name':'x','arguments':{'arg':'wrong'}}},
+          {'id':2,'error':{'code':-32602}}]
+    fs=diagnose(parse_text('\n'.join(map(json.dumps,rows))))
+    output=(render_json if mode=='json' else render_text)(fs,'synthetic')
+    assert 'SYNTHETIC_ENUM_CANARY' not in output
+    assert 'not one of' in output
