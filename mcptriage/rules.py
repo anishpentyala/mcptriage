@@ -643,6 +643,19 @@ def rule_tool_call_problems(session: Session, strict: bool = False) -> List[Find
                 "feedback instead of the raw JSON-RPC error.",
             ))
             continue
+        if err is not None and _usable_error_code(err.get("code")):
+            findings.append(Finding(
+                "TOOL_CALL_PROTOCOL_ERROR", HIGH,
+                "tools/call '%s' returned JSON-RPC error %s" % (name, err["code"]),
+                "%s | %s" % (_ev(req), _ev(resp)),
+                "The server returned a protocol-level rejection, not an isError "
+                "tool-execution result. The error code alone does not prove which "
+                "request field or server component caused it.",
+                "Read the server's error details and logs for this request id. "
+                "Check that the named tool is available and the request matches "
+                "the server's supported protocol before retrying.",
+            ))
+            continue
         result = resp.result()
         if isinstance(result, dict) and result.get("isError") is True:
             snippet = ""

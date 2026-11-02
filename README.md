@@ -46,6 +46,7 @@ or a hand-saved `.jsonl` file:
 mcptriage diagnose /path/to/mcp-log.txt
 mcptriage diagnose session.jsonl --stdio        # strict: every non-JSON line is pollution
 mcptriage diagnose session.jsonl --format json  # machine-readable, for CI
+mcptriage diagnose examples/tool-call-protocol-error.jsonl  # synthetic protocol failure, exit 1
 ```
 
 Try the synthetic conflicting-response example:
@@ -104,6 +105,7 @@ Transcript rules (input: captured JSON-RPC exchange):
 | EMPTY_TOOLS_LIST | medium | list succeeds but returns `[]` (auth-gated or none registered) |
 | PAGINATION_INCOMPLETE | medium | `nextCursor` returned, next page never requested |
 | ERA_MIX | medium | 2025 handshake mixed with 2026-era markers |
+| TOOL_CALL_PROTOCOL_ERROR | high | `tools/call` returns a valid JSON-RPC error other than the separately diagnosed `-32602` |
 | TOOL_CALL_FAILED | medium | call returns `isError: true` (server-side, not protocol) |
 | MISSING_INITIALIZED | low | no `notifications/initialized` after initialize |
 | UNUSABLE_TOOLS_CATALOG | high | malformed tools/list result, tools array or entry/name shape |
