@@ -715,8 +715,8 @@ def rule_unusable_tool_name(session: Session, strict: bool = False) -> List[Find
         "Check the emitting client or capture adapter and preserve the exact "
         "string tool name. Do not stringify malformed values.",
     ) for message in session.requests("tools/call")
-       if isinstance(message.obj.get("params"), dict)
-       and not isinstance(message.obj["params"].get("name"), str)]
+       if isinstance(message.obj.get("params", {}), dict)
+       and not isinstance(message.obj.get("params", {}).get("name"), str)]
 
 
 ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
