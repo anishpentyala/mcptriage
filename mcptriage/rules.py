@@ -488,7 +488,10 @@ def rule_unusable_cursor(session: Session, strict: bool = False) -> List[Finding
 
 def rule_schema_issues(session: Session, strict: bool = False) -> List[Finding]:
     problems = []
-    for m in session.parsed:
+    for req in session.requests("tools/list"):
+        m = session.response_for(req)
+        if m is None or m.error() is not None:
+            continue
         result = m.result()
         if not (isinstance(result, dict) and isinstance(result.get("tools"), list)):
             continue
