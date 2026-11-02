@@ -12,14 +12,27 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
 _REQUEST = "request"
 _NOTIFICATION = "notification"
 _RESPONSE = "response"
 _UNPARSED = "unparsed"
+_INVALID_ID = "invalid_id"
 
 _BRACE = re.compile(r"\{")
+
+
+def _precise_number(value: str) -> Decimal:
+    """Keep exact numeric IDs, including an invalid marker for extreme exponents."""
+    try:
+        return Decimal(value)
+    except InvalidOperation:
+        # json float parsing accepts exponents beyond Decimal's own range.
+        # Only the decoded top-level ID is copied back, so unrelated values
+        # cannot invalidate an otherwise usable ID. NaN is rejected below.
+        return Decimal("NaN")
 
 
 def _classify(obj: Any):
@@ -27,13 +40,26 @@ def _classify(obj: Any):
     if not isinstance(obj, dict):
         return _UNPARSED, None, None
     method = obj.get("method")
+    identifier = obj.get("id")
+    # JSON numbers with an integral value (1.0 or 1e0) are integer IDs too.
+    if (isinstance(identifier, Decimal) and identifier.is_finite()
+            and identifier.adjusted() < 4300
+            and identifier == identifier.to_integral_value()):
+        identifier = int(identifier)
+    if "id" in obj and type(identifier) not in (str, int):
+        # Null-ID errors can report a malformed request whose ID was unreadable.
+        # Keep that protocol exception unpaired, not a valid request/response.
+        if obj["id"] is None and method is None and isinstance(obj.get("error"), dict):
+            return _UNPARSED, None, None
+        if method is not None or "result" in obj or "error" in obj:
+            return _INVALID_ID, method, obj["id"]
     has_id = "id" in obj and obj.get("id") is not None
     if method is not None and has_id:
-        return _REQUEST, method, obj.get("id")
+        return _REQUEST, method, identifier
     if method is not None:
         return _NOTIFICATION, method, None
     if has_id and ("result" in obj or "error" in obj):
-        return _RESPONSE, None, obj.get("id")
+        return _RESPONSE, None, identifier
     return _UNPARSED, None, None
 
 
@@ -66,7 +92,7 @@ class Session:
 
     @property
     def parsed(self) -> List[Message]:
-        return [m for m in self.messages if m.kind != _UNPARSED]
+        return [m for m in self.messages if m.kind not in (_UNPARSED, _INVALID_ID)]
 
     @property
     def unparsed(self) -> List[Message]:
@@ -88,10 +114,12 @@ class Session:
 
     def response_for(self, request: Message) -> Optional[Message]:
         """The first response after `request` carrying its id."""
+        if request.kind != _REQUEST or type(request.msg_id) not in (str, int):
+            return None
         for m in self.messages:
             if m.line_no <= request.line_no:
                 continue
-            if m.kind == _RESPONSE and m.msg_id == request.msg_id:
+            if m.kind == _RESPONSE and type(m.msg_id) is type(request.msg_id) and m.msg_id == request.msg_id:
                 return m
         return None
 
@@ -161,6 +189,12 @@ def parse_text(text: str) -> Session:
         if obj is None:
             session.messages.append(Message(line_no, raw_line.rstrip("\n"), None, _UNPARSED))
             continue
+        # Preserve number-valued IDs exactly before integer normalization.
+        # A float round-trip could alias 9007199254740993.0 with 9007199254740992.
+        if isinstance(obj, dict) and type(obj.get("id")) is float:
+            source = line[match.start():] if extracted else line
+            precise, _ = json.JSONDecoder(parse_float=_precise_number).raw_decode(source)
+            obj["id"] = precise["id"]
         kind, method, msg_id = _classify(obj)
         if kind == _UNPARSED:
             session.messages.append(Message(line_no, raw_line.rstrip("\n"), None, _UNPARSED))

@@ -597,7 +597,25 @@ def rule_direction_ambiguous(session: Session, strict: bool = False) -> List[Fin
         "diagnosis depends on exact pairing.",
     )]
 
+def rule_invalid_rpc_id(session: Session, strict: bool = False) -> List[Finding]:
+    """MCP request IDs are strings or integers, never Python bool aliases."""
+    return [Finding(
+        "INVALID_RPC_ID", HIGH,
+        "JSON-RPC message has an invalid or unsupported request identifier",
+        _ev(message),
+        "MCP requires string or integer request IDs. Null, boolean, fractional, "
+        "array and object IDs cannot be used to pair requests with responses. "
+        "Exponent-form IDs requiring 4301 or more decimal integer digits are "
+        "outside this parser's supported range and are also left unpaired. "
+        "This message is retained as evidence but excluded from pairing.",
+        "Fix the emitting client/server or capture adapter to preserve valid "
+        "request IDs and return the same ID type and value in the response. "
+        "A null-ID error for an unreadable malformed request is exempt.",
+    ) for message in session.messages if message.kind == "invalid_id"]
+
+
 ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
+    rule_invalid_rpc_id,
     rule_stdio_pollution,
     rule_version_downshift,
     rule_missing_tools_capability,
