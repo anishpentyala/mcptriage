@@ -14,12 +14,12 @@ def decoder_limits(monkeypatch):
         return original(text,**kwargs)
     monkeypatch.setattr(json,'loads',loads)
 
-@pytest.mark.parametrize('text',[
-    '{"mcpServers":{"s":{"command":"python","extra":'+('9'*5000)+'}}}',
-    '{"mcpServers":{"s":{"extra":'+'['*2000+'0'+']'*2000+'}}}',
-    '{"mcpServers":{"s":{"extra":'+'{"x":'*2000+'0'+'}'*2000+'}}}',
-])
-def test_rejected_config_gets_explicit_high_finding(text):
+@pytest.mark.parametrize('shape',['integer','array','object'])
+def test_rejected_config_gets_explicit_high_finding(shape,rejected_nesting_depth):
+    value = ('9'*5000 if shape=='integer' else
+             '['*rejected_nesting_depth+'0'+']'*rejected_nesting_depth if shape=='array' else
+             '{"x":'*rejected_nesting_depth+'0'+'}'*rejected_nesting_depth)
+    text='{"mcpServers":{"s":{"command":"python","extra":'+value+'}}}'
     fs=check_config_text(text)
     assert len(fs)==1
     assert fs[0].code=='CFG_JSON_LIMIT'
