@@ -93,7 +93,7 @@ def _check_server(name: str, spec: Dict[str, Any], path: str, base_dir: str) -> 
     # Validate field shapes independently of truthiness. Never echo malformed
     # values, which may contain credentials, or use them as endpoint evidence.
     bad_fields = []
-    for field in ("command", "url", "envFile"):
+    for field in ("command", "url", "envFile", "type"):
         if field in spec and not isinstance(spec[field], str):
             bad_fields.append(field)
     if "args" in spec and (not isinstance(spec["args"], list)
@@ -107,7 +107,7 @@ def _check_server(name: str, spec: Dict[str, Any], path: str, base_dir: str) -> 
             "CFG_SHAPE", HIGH if field in ("command", "url") else MEDIUM,
             "server '%s' %s has an unusable field type" % (name, field),
             "%s: '%s' field '%s'" % (path, name, field),
-            "command, url and envFile must be strings; args must contain only "
+            "command, url, envFile and type must be strings; args must contain only "
             "strings; env must map variable names to string values. "
             "The malformed value is not used as launch or endpoint evidence.",
             "Check the client's config format and fix the field's JSON type "
@@ -115,7 +115,7 @@ def _check_server(name: str, spec: Dict[str, Any], path: str, base_dir: str) -> 
         ))
     command = spec.get("command") if isinstance(spec.get("command"), str) else None
     url = spec.get("url") if isinstance(spec.get("url"), str) else None
-    stype = spec.get("type")
+    stype = spec.get("type") if isinstance(spec.get("type"), str) else None
     if command and url:
         findings.append(Finding(
             "CFG_SHAPE", MEDIUM,
