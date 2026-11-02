@@ -97,6 +97,7 @@ Transcript rules (input: captured JSON-RPC exchange):
 | MISSING_INITIALIZED | low | no `notifications/initialized` after initialize |
 | SCHEMA_ISSUES | low | missing/invalid `inputSchema` in listed tools |
 | ORPHAN_RESPONSES | low | responses with ids no request claims (broken framing) |
+| INVALID_RPC_ID | high | null, boolean, fractional, array or object IDs that cannot pair safely |
 
 Config rules (input: client config file): invalid JSON with position, missing
 or empty servers map, entries with neither/both of `command` and `url`,
@@ -207,3 +208,20 @@ Failure-mode cataloging and demand evidence (secondary, practitioner):
 ## License
 
 MIT
+
+### Malformed request identifiers
+
+MCP request IDs must be strings or integers. Messages with boolean, fractional,
+array, object or null IDs remain available as evidence but are excluded
+from request/response pairing and tool-schema discovery. `INVALID_RPC_ID` is a
+high-severity finding instead of a crash or a misleading match (`true` must not
+match integer `1`). Integer `1` and string `"1"` remain distinct. Integral JSON numbers such as
+`1.0` and `1e0` pair with integer `1` without truncating fractional IDs. A null-ID error
+for a malformed request whose identifier could not be read is exempt and stays
+unpaired. Exponent-form IDs needing 4301 or more decimal integer digits are outside the
+parser's supported range and receive the same diagnostic without expansion.
+This is targeted identifier validation, not a complete JSON-RPC schema
+validator; direction ambiguity and incomplete-capture caveats still apply.
+
+Source: [MCP 2026-07-28 basic messages](https://modelcontextprotocol.io/specification/2026-07-28/basic),
+checked 2026-11-02; the 2025-11-25 basic spec has the same ID type rule.
