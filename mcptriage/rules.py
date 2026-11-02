@@ -95,6 +95,25 @@ def _type_ok(declared: Any, value: Any) -> bool:
     return True  # unknown or absent type: no opinion
 
 
+def _valid_required(value: Any) -> bool:
+    return (isinstance(value, list) and all(isinstance(x, str) for x in value)
+            and len(set(value)) == len(value))
+
+
+def _json_equal(left: Any, right: Any) -> bool:
+    if isinstance(left, bool) or isinstance(right, bool):
+        return type(left) is type(right) and left == right
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return left == right
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, list):
+        return len(left) == len(right) and all(_json_equal(a, b) for a, b in zip(left, right))
+    if isinstance(left, dict):
+        return left.keys() == right.keys() and all(_json_equal(left[k], right[k]) for k in left)
+    return left == right
+
+
 def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
     """Top-level JSON Schema argument check. Returns human-readable problems."""
     problems: List[str] = []
@@ -103,7 +122,7 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
     props = schema.get("properties")
     props = props if isinstance(props, dict) else {}
     required = schema.get("required")
-    required = required if isinstance(required, list) else []
+    required = required if _valid_required(required) else []
     for name in required:
         if name not in args:
             problems.append("missing required argument '%s'" % name)
@@ -127,7 +146,7 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
                 % (name, declared, type(value).__name__)
             )
         enum = spec.get("enum")
-        if isinstance(enum, list) and value not in enum:
+        if isinstance(enum, list) and not any(_json_equal(value, item) for item in enum):
             problems.append("argument '%s' is not one of %s" % (name, enum))
     return problems
 
@@ -474,6 +493,8 @@ def rule_schema_issues(session: Session, strict: bool = False) -> List[Finding]:
                     "tool '%s' inputSchema type is %r (clients expect 'object')"
                     % (name, schema.get("type"))
                 )
+            if isinstance(schema, dict) and "required" in schema and not _valid_required(schema["required"]):
+                problems.append("tool '%s' required must be a list of unique strings" % name)
     if not problems:
         return []
     return [Finding(
