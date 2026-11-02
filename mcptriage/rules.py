@@ -333,15 +333,17 @@ def rule_tools_list_hang(session: Session, strict: bool = False) -> List[Finding
 
 
 def rule_missing_initialized(session: Session, strict: bool = False) -> List[Finding]:
-    if not session.requests("initialize"):
-        return []
-    if session.notifications("notifications/initialized"):
-        return []
+    notifications = session.notifications("notifications/initialized")
     resp = None
     for req in session.requests("initialize"):
-        resp = session.response_for(req)
-        if resp is not None:
-            break
+        candidate = session.response_for(req)
+        if (candidate is None or candidate.error() is not None
+                or not isinstance(candidate.result(), dict)):
+            continue
+        if any(note.line_no > candidate.line_no for note in notifications):
+            continue
+        resp = candidate
+        break
     if resp is None:
         return []
     return [Finding(
