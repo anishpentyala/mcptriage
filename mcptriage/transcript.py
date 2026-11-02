@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
 _REQUEST = "request"
@@ -22,6 +22,17 @@ _UNPARSED = "unparsed"
 _INVALID_ID = "invalid_id"
 
 _BRACE = re.compile(r"\{")
+
+
+def _precise_number(value: str) -> Decimal:
+    """Keep exact numeric IDs, including an invalid marker for extreme exponents."""
+    try:
+        return Decimal(value)
+    except InvalidOperation:
+        # json float parsing accepts exponents beyond Decimal's own range.
+        # Only the decoded top-level ID is copied back, so unrelated values
+        # cannot invalidate an otherwise usable ID. NaN is rejected below.
+        return Decimal("NaN")
 
 
 def _classify(obj: Any):
@@ -182,7 +193,7 @@ def parse_text(text: str) -> Session:
         # A float round-trip could alias 9007199254740993.0 with 9007199254740992.
         if isinstance(obj, dict) and type(obj.get("id")) is float:
             source = line[match.start():] if extracted else line
-            precise, _ = json.JSONDecoder(parse_float=Decimal).raw_decode(source)
+            precise, _ = json.JSONDecoder(parse_float=_precise_number).raw_decode(source)
             obj["id"] = precise["id"]
         kind, method, msg_id = _classify(obj)
         if kind == _UNPARSED:
