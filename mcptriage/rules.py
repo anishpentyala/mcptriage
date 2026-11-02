@@ -399,11 +399,11 @@ def rule_auth_on_list(session: Session, strict: bool = False) -> List[Finding]:
 def rule_pagination_incomplete(session: Session, strict: bool = False) -> List[Finding]:
     findings = []
     list_reqs = session.requests("tools/list")
-    requested_cursors = set()
+    requested_cursors = {}
     for req in list_reqs:
-        params = req.obj.get("params") or {}
-        if isinstance(params, dict) and params.get("cursor"):
-            requested_cursors.add(params["cursor"])
+        params = req.obj.get("params")
+        if isinstance(params, dict) and isinstance(params.get("cursor"), str):
+            requested_cursors.setdefault(params["cursor"], []).append(req.line_no)
     for req in list_reqs:
         resp = session.response_for(req)
         if resp is None:
@@ -412,8 +412,10 @@ def rule_pagination_incomplete(session: Session, strict: bool = False) -> List[F
         if not isinstance(result, dict):
             continue
         cursor = result.get("nextCursor")
-        if cursor and cursor not in requested_cursors:
-            count = len(result.get("tools") or [])
+        if isinstance(cursor, str) and not any(
+                line > resp.line_no for line in requested_cursors.get(cursor, [])):
+            tools = result.get("tools")
+            count = len(tools) if isinstance(tools, list) else 0
             findings.append(Finding(
                 "PAGINATION_INCOMPLETE", MEDIUM,
                 "tools/list returned nextCursor but no later page request appears in this capture",
@@ -423,6 +425,31 @@ def rule_pagination_incomplete(session: Session, strict: bool = False) -> List[F
                 "incomplete." % count,
                 "Fix the client to follow nextCursor until it is absent, or raise the "
                 "server's page size.",
+            ))
+    return findings
+
+
+def rule_unusable_cursor(session: Session, strict: bool = False) -> List[Finding]:
+    findings = []
+    for req in session.requests("tools/list"):
+        params = req.obj.get("params")
+        resp = session.response_for(req)
+        result = resp.result() if resp is not None else None
+        for message, obj, field in ((req, params, "cursor"),
+                                    (resp, result, "nextCursor")):
+            if (message is None or not isinstance(obj, dict)
+                    or field not in obj or isinstance(obj[field], str)):
+                continue
+            findings.append(Finding(
+                "UNUSABLE_CURSOR", HIGH,
+                "tools/list %s is not a string" % field,
+                _ev(message),
+                "Pagination cursors are opaque strings. This captured value "
+                "cannot establish a page request or a continuation cursor, "
+                "so it is omitted from pagination completion evidence. "
+                "The original message is retained.",
+                "Check the emitter or capture adapter and preserve the exact "
+                "string cursor without coercing arrays, objects or numbers.",
             ))
     return findings
 
@@ -649,6 +676,7 @@ ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
     rule_session_id_lost,
     rule_auth_on_list,
     rule_pagination_incomplete,
+    rule_unusable_cursor,
     rule_schema_issues,
     rule_orphan_responses,
     rule_era_mix,
