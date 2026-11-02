@@ -241,3 +241,13 @@ which side or method owns the response. Other unique exchanges still contribute.
 Later messages outside the diagnostic's capture cutoff cannot change earlier
 schema evidence. This is a conservative evidence filter, not direction detection
 or complete protocol validation.
+
+### Unusable parameter evidence
+
+Explicit non-object `params` on captured `initialize` and `tools/call` requests
+produce high-severity `UNUSABLE_PARAMS` findings. The original parsed object is
+retained, diagnostic evidence receives the existing best-effort redaction, and
+parameter-specific explanations are omitted instead of treating a malformed
+value as an empty object or crashing. Missing params keep the existing behavior.
+This targeted guard is not complete method-schema validation; other diagnostic
+rules can still report independent evidence from the same exchange.
