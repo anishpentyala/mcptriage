@@ -519,7 +519,7 @@ def rule_unusable_tools_catalog(session: Session, strict: bool = False) -> List[
     findings = []
     for req in session.requests("tools/list"):
         resp = session.response_for(req)
-        if resp is None or resp.error() is not None:
+        if resp is None or not resp.usable_response() or resp.error() is not None:
             continue
         result = resp.result()
         problem = None
@@ -785,7 +785,23 @@ def rule_unusable_tool_name(session: Session, strict: bool = False) -> List[Find
        and not isinstance(message.obj.get("params", {}).get("name"), str)]
 
 
+def rule_unusable_response(session: Session, strict: bool = False) -> List[Finding]:
+    return [Finding(
+        "UNUSABLE_RESPONSE", HIGH,
+        "captured response must contain exactly one result or object-valued error",
+        _ev(message),
+        "This response has conflicting result/error members or a non-object error. "
+        "It establishes neither protocol success nor protocol failure. It still "
+        "answers its request for chronology, so it is not called a missing response. "
+        "This check does not validate every response or result field.",
+        "Check the emitting server or capture adapter and preserve the original "
+        "response. Return exactly one result member or one object-valued error.",
+    ) for message in session.messages
+       if message.kind == "response" and not message.usable_response()]
+
+
 ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
+    rule_unusable_response,
     rule_invalid_rpc_id,
     rule_unusable_error_code,
     rule_unusable_tool_name,
