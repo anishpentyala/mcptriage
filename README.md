@@ -133,7 +133,10 @@ claim about everything that exists.
   `Authorization` headers, bearer tokens, URL userinfo and credential query
   parameters, and JSON fields named like `token`, `secret`, `password`, or
   `api_key` are masked as `***`. Redaction is best-effort, not complete
-  sanitization - review any log before sharing it, and never commit raw
+  sanitization. Known JSON credential fields handle escaped quotes and
+  backslashes directly and inside one encoded JSON-string layer. Deeper
+  encodings or other credential formats can still leak; review any log before
+  sharing it, and never commit raw
   captured logs to a repository.
 - Most client log captures are one-directional excerpts. mcptriage reports
   `CAPTURE_INCOMPLETE` when the capture does not start at session open, and
