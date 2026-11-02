@@ -127,17 +127,36 @@ def _valid_required(value: Any) -> bool:
 
 
 def _json_equal(left: Any, right: Any) -> bool:
-    if isinstance(left, bool) or isinstance(right, bool):
-        return type(left) is type(right) and left == right
-    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
-        return left == right
-    if type(left) is not type(right):
-        return False
-    if isinstance(left, list):
-        return len(left) == len(right) and all(_json_equal(a, b) for a, b in zip(left, right))
-    if isinstance(left, dict):
-        return left.keys() == right.keys() and all(_json_equal(left[k], right[k]) for k in left)
-    return left == right
+    """Compare JSON values iteratively, without Python bool/number aliasing."""
+    pending = [(left, right)]
+    while pending:
+        left, right = pending.pop()
+        if isinstance(left, bool) or isinstance(right, bool):
+            if type(left) is not type(right) or left != right:
+                return False
+        elif isinstance(left, (int, float)) and isinstance(right, (int, float)):
+            if left != right:
+                return False
+        elif type(left) is not type(right):
+            return False
+        elif isinstance(left, list):
+            if len(left) != len(right):
+                return False
+            pending.extend(zip(left, right))
+        elif isinstance(left, dict):
+            if left.keys() != right.keys():
+                return False
+            pending.extend((left[key], right[key]) for key in left)
+        elif left != right:
+            return False
+    return True
+
+
+def _enum_summary(enum: list) -> str:
+    try:
+        return _clip(str(enum))
+    except RecursionError:
+        return "the declared enum (%d deeply nested value(s))" % len(enum)
 
 
 def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
@@ -173,7 +192,7 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
             )
         enum = spec.get("enum")
         if isinstance(enum, list) and not any(_json_equal(value, item) for item in enum):
-            problems.append("argument '%s' is not one of %s" % (name, enum))
+            problems.append("argument '%s' is not one of %s" % (name, _enum_summary(enum)))
     return problems
 
 
