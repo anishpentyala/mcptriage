@@ -82,6 +82,7 @@ Transcript rules (input: captured JSON-RPC exchange):
 
 | Code | Severity | Detects |
 | --- | --- | --- |
+| NO_PROTOCOL_MESSAGES | high | empty capture or no recognized JSON-RPC messages |
 | STDIO_POLLUTION | high | non-JSON lines in a stdio stream |
 | MISSING_TOOLS_CAPABILITY | high | initialize result lacks `tools`, client never lists |
 | TOOLS_LIST_ERROR | high | `tools/list` JSON-RPC error, per-code diagnosis |
@@ -344,3 +345,8 @@ Malformed paired non-error `tools/list` results produce `UNUSABLE_TOOLS_CATALOG`
 when the result is not an object with a tools array, or an entry is not an object
 with a string name. Other checks continue. This does not validate every field,
 name convention, schema or JSON-RPC result envelope.
+
+An empty capture or input containing no recognized JSON-RPC messages produces
+`NO_PROTOCOL_MESSAGES` rather than "no problems found". Invalid-ID messages keep
+their own finding. A recognized message is not proof of a complete or valid
+session: capture-quality flags and the other supported checks still apply.
