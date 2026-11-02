@@ -356,3 +356,24 @@ the original line stays unparsed instead of crashing the capture. Other lines
 continue through diagnosis. The parser does not search inside that rejected
 object for a nested substitute message. Runtime integer limits vary; this does
 not add arbitrary-size integer support or silently coerce the number.
+
+JSON decoder recursion-limit failures are handled the same way: retain the
+original line as unparsed evidence and continue other lines, without extracting
+nested substitute traffic. This is not arbitrary-depth parsing or a general
+resource-containment guarantee.
+
+Config JSON decoding failures caused by runtime integer or nesting limits produce
+high-severity `CFG_JSON_LIMIT` without echoing rejected values. Ordinary JSON
+syntax errors retain `CFG_JSON_ERROR` and their line/column position. A runtime
+limit does not prove the JSON syntax itself is invalid; no server checks ran.
+
+Diagnosis builds one chronological response-ownership index for that pass and
+shares it across rules. The index is not kept on the mutable caller session,
+so a later diagnosis sees appended or removed messages. This reduces repeated
+pairing scans for large tool-list captures; it does not make every rule linear
+or change the documented uncertainty of untagged request-ID reuse.
+
+Authentication-on-list heuristics inspect the paired JSON-RPC error object,
+not outer request IDs, unrelated response metadata or log prefixes. Existing
+401/unauthorized markers inside that error still count as heuristic evidence;
+this is not HTTP-status parsing or proof of an authentication root cause.

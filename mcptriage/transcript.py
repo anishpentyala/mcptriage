@@ -112,28 +112,30 @@ class Session:
                 out.append(m)
         return out
 
-    def response_for(self, request: Message) -> Optional[Message]:
-        """The first response after `request` carrying its id."""
-        if request.kind != _REQUEST or type(request.msg_id) not in (str, int):
-            return None
+    def response_pairs(self) -> Dict[int, Message]:
+        """Build chronological response ownership keyed by request object identity."""
         pending = {}
         ambiguous = set()
+        pairs = {}
         for m in self.messages:
             if m.kind not in (_REQUEST, _RESPONSE):
                 continue
             key = (type(m.msg_id), m.msg_id)
             if m.kind == _REQUEST:
                 if key in pending:
-                    # An untagged capture cannot tell which side owns this ID.
-                    # Later traffic cannot prove that all overlapping requests
-                    # completed, so do not re-enable this ID within the capture.
                     ambiguous.add(key)
                 pending[key] = m
             elif key not in ambiguous:
                 owner = pending.pop(key, None)
-                if owner is request:
-                    return m
-        return None
+                if owner is not None:
+                    pairs[id(owner)] = m
+        return pairs
+
+    def response_for(self, request: Message) -> Optional[Message]:
+        """Return the chronologically owned response without retaining stale state."""
+        if request.kind != _REQUEST or type(request.msg_id) not in (str, int):
+            return None
+        return self.response_pairs().get(id(request))
 
     def orphan_responses(self) -> List[Message]:
         """Responses whose id no earlier request claims."""
@@ -214,12 +216,12 @@ def parse_text(text: str) -> Session:
                     break
                 except json.JSONDecodeError:
                     continue
-                except ValueError:
-                    # Integer conversion limits are not framing errors. Do not
+                except (ValueError, RecursionError):
+                    # Decoder resource limits are not framing errors. Do not
                     # search deeper and invent traffic from a nested object.
                     break
-        except ValueError:
-            # The runtime may bound decimal integer decoding. Preserve the
+        except (ValueError, RecursionError):
+            # The runtime may bound integer decoding or nesting depth. Preserve the
             # original line as unparsed instead of aborting the whole capture.
             pass
         if obj is None:
