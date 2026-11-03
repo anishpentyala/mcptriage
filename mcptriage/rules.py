@@ -355,7 +355,13 @@ def rule_tools_list_error(session: Session, strict: bool = False) -> List[Findin
         if code == -32022 and isinstance(err.get("data"), dict):
             supported = err["data"].get("supported")
             if supported:
-                extra = " Server supports: %s." % supported
+                try:
+                    detail_summary = redact(str(supported))
+                    if len(detail_summary) > 320:
+                        detail_summary = "[version details too long to display]"
+                except RecursionError:
+                    detail_summary = "[version details too deeply nested to display]"
+                extra = " Server supports: %s." % detail_summary
         findings.append(Finding(
             "TOOLS_LIST_ERROR", HIGH,
             "tools/list failed: %s" % detail,
