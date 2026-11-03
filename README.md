@@ -189,6 +189,9 @@ claim about everything that exists.
 - Long version-mismatch error details are omitted in reports. If a captured supported-
   version value is too deeply nested to render, diagnosis keeps the error and
   uses a short placeholder instead of aborting. This is not version-list validation.
+- Tool schemas are looked up for call-argument validation only after an invalid-
+  params response with object arguments. Successful calls and other outcomes do
+  not rebuild a catalog they do not use.
 - The argument validator checks the top level of `inputSchema` (required,
   primitive types, enum, additionalProperties, boolean subschemas). Unknown or
   unsupported JSON Schema constructs are ignored - never reported as
