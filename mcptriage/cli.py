@@ -54,23 +54,33 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
     findings: List[Finding] = []
     if args.command == "diagnose":
-        if args.logfile == "-":
-            from .transcript import parse_text
+        try:
+            if args.logfile == "-":
+                from .transcript import parse_text
 
-            session = parse_text(sys.stdin.read())
-            source = "<stdin>"
-        else:
-            session = parse_file(args.logfile)
-            source = args.logfile
+                session = parse_text(sys.stdin.read())
+                source = "<stdin>"
+            else:
+                session = parse_file(args.logfile)
+                source = args.logfile
+        except OSError as exc:
+            parser.error("cannot read transcript input (%s)" % type(exc).__name__)
         findings.extend(diagnose(session, strict_stdio=args.stdio))
         if args.config:
-            findings.extend(check_config_file(args.config))
+            try:
+                findings.extend(check_config_file(args.config))
+            except OSError as exc:
+                parser.error("cannot read config input (%s)" % type(exc).__name__)
     elif args.command == "check-config":
         source = args.config
-        findings.extend(check_config_file(args.config))
+        try:
+            findings.extend(check_config_file(args.config))
+        except OSError as exc:
+            parser.error("cannot read config input (%s)" % type(exc).__name__)
     else:  # pragma: no cover - argparse enforces a command
         return 2
     if args.format == "json":
