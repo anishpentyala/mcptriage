@@ -181,8 +181,21 @@ class Session:
                 continue
             result = m.result()
             if isinstance(result, dict) and isinstance(result.get("tools"), list):
+                seen_names = set()
+                duplicate_names = set()
+                for tool in result["tools"]:
+                    if isinstance(tool, dict) and isinstance(tool.get("name"), str):
+                        name = tool["name"]
+                        if name in seen_names:
+                            duplicate_names.add(name)
+                        seen_names.add(name)
+                # A single response with repeated names gives no basis for
+                # choosing a schema. Do not retain an older schema as current.
+                for name in duplicate_names:
+                    tools.pop(name, None)
                 for t in result["tools"]:
-                    if isinstance(t, dict) and isinstance(t.get("name"), str):
+                    if (isinstance(t, dict) and isinstance(t.get("name"), str)
+                            and t["name"] not in duplicate_names):
                         schema = t.get("inputSchema")
                         tools[t["name"]] = schema if isinstance(schema, dict) else {}
         return tools

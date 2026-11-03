@@ -582,6 +582,38 @@ def rule_unusable_tools_catalog(session: Session, strict: bool = False) -> List[
     return findings
 
 
+def rule_duplicate_tool_names(session: Session, strict: bool = False) -> List[Finding]:
+    findings = []
+    for req in session.requests("tools/list"):
+        resp = session.response_for(req)
+        result = resp.result() if resp is not None else None
+        if not isinstance(result, dict) or not isinstance(result.get("tools"), list):
+            continue
+        names = [t["name"] for t in result["tools"]
+                 if isinstance(t, dict) and isinstance(t.get("name"), str)]
+        seen = set()
+        repeated_names = set()
+        for name in names:
+            if name in seen:
+                repeated_names.add(name)
+            seen.add(name)
+        repeated = len(repeated_names)
+        if repeated:
+            findings.append(Finding(
+                "DUPLICATE_TOOL_NAMES", MEDIUM,
+                "tools/list response repeats %d tool name(s)" % repeated,
+                _ev(resp),
+                "A single captured tools/list response contains repeated names. "
+                "There is no evidence for choosing one definition for a call. "
+                "Schemas for those names are omitted from argument explanations; "
+                "uniquely named tools remain available.",
+                "Give tools distinct names within the server or disambiguate "
+                "aggregated tools before presenting the catalog. Check the "
+                "server or proxy rather than assuming the last definition wins.",
+            ))
+    return findings
+
+
 def rule_schema_issues(session: Session, strict: bool = False) -> List[Finding]:
     problems = []
     for req in session.requests("tools/list"):
@@ -874,6 +906,7 @@ ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
     rule_pagination_incomplete,
     rule_unusable_cursor,
     rule_unusable_tools_catalog,
+    rule_duplicate_tool_names,
     rule_schema_issues,
     rule_orphan_responses,
     rule_era_mix,
