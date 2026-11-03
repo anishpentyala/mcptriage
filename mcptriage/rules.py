@@ -194,7 +194,7 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
             problems.append("argument '%s' is not allowed by the schema" % name)
             continue
         if not isinstance(spec, dict):
-            if schema.get("additionalProperties") is False:
+            if name not in props and schema.get("additionalProperties") is False:
                 problems.append(
                     "unexpected argument '%s' (schema sets additionalProperties: false)" % name
                 )

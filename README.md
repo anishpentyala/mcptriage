@@ -450,3 +450,8 @@ catalog schemas for subsequent calls until new paired `tools/list` evidence
 arrives. Earlier requests keep their request-time evidence. This conservative
 guard does not infer a replacement catalog from the notification or implement
 full pagination, authorization, or catalog-refresh semantics.
+
+An argument explicitly listed in `properties` is not labeled an additional
+property merely because its captured property schema is malformed. Unsupported
+property schema values supply no type evidence; actual undeclared names still
+respect `additionalProperties: false`. This does not validate every schema.
