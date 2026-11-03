@@ -86,12 +86,23 @@ async def capture():
         return await _capture()
 
 
-DIAGNOSE = """import json,sys\nfrom mcptriage.rules import diagnose\nfrom mcptriage.transcript import parse_text\nfrom dataclasses import asdict\nprint(json.dumps([asdict(f) for f in diagnose(parse_text(sys.stdin.read()))]))"""
+DIAGNOSE = """import json,sys
+from pathlib import Path
+import mcptriage.rules as rules
+import mcptriage.transcript as transcript
+from dataclasses import asdict
+root = Path(sys.argv[1])
+for module, name in ((rules, "rules.py"), (transcript, "transcript.py")):
+    expected = (root / "mcptriage" / name).resolve()
+    if Path(module.__file__).resolve() != expected:
+        raise RuntimeError("diagnostic source provenance mismatch: " + str(module.__file__))
+print(json.dumps([asdict(f) for f in rules.diagnose(transcript.parse_text(sys.stdin.read()))]))
+"""
 
 
 def findings(root, text):
     p = subprocess.run(
-        [sys.executable, "-c", DIAGNOSE],
+        [sys.executable, "-c", DIAGNOSE, str(root)],
         input=text,
         text=True,
         capture_output=True,
@@ -119,8 +130,8 @@ def main():
     if a.baseline is not None:
         a.baseline = a.baseline.resolve()
     for root in [a.head] + ([a.baseline] if a.baseline else []):
-        if not (root / "mcptriage" / "rules.py").is_file():
-            p.error("source root must contain mcptriage/rules.py: " + str(root))
+        if not all((root / "mcptriage" / name).is_file() for name in ("__init__.py", "rules.py", "transcript.py")):
+            p.error("source root must contain mcptriage/__init__.py, rules.py and transcript.py: " + str(root))
     assert version("mcp") == "2.3.0", "qualification is pinned to SDK2.3.0"
     a.output.mkdir(parents=True, exist_ok=False)
     rows = anyio.run(capture)
