@@ -419,3 +419,13 @@ Authentication-on-list heuristics inspect the paired JSON-RPC error object,
 not outer request IDs, unrelated response metadata or log prefixes. Existing
 401/unauthorized markers inside that error still count as heuristic evidence;
 this is not HTTP-status parsing or proof of an authentication root cause.
+
+For top-level argument properties, supported JSON Schema types include `null`
+and nonempty arrays of unique supported type names, such as
+`["string", "null"]`. A value must match at least one listed type. Nullable
+values still need to be present when required and still obey an `enum`.
+Malformed or unknown type arrays supply no type-violation explanation rather
+than being narrowed to their recognized members. Nested schemas, `anyOf`,
+`oneOf` and other JSON Schema keywords remain outside this targeted check.
+See [JSON Schema type](https://json-schema.org/understanding-json-schema/reference/type)
+and [null](https://json-schema.org/understanding-json-schema/reference/null).
