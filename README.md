@@ -455,3 +455,11 @@ An argument explicitly listed in `properties` is not labeled an additional
 property merely because its captured property schema is malformed. Unsupported
 property schema values supply no type evidence; actual undeclared names still
 respect `additionalProperties: false`. This does not validate every schema.
+
+Repeated invalid-params calls between catalog evidence changes share one
+request-time catalog snapshot within a diagnosis. A tool-list request, response,
+reused ID relevant to tool-list ownership, or tools/list_changed notification
+ends that reuse window. Only the latest snapshot is kept, and no cache survives
+a diagnosis call. This avoids repeating full catalog scans for an unchanged
+catalog; captures alternating catalog changes and failed calls can still need
+repeated scans. The ownership and request-time evidence rules do not change.
