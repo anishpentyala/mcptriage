@@ -183,6 +183,9 @@ claim about everything that exists.
   JSON arrays and objects. Long or deeply nested mismatched enum values use a bounded
   explanation that omits values instead of displaying a truncated prefix. This does not expand the
   schema keywords the validator supports.
+- Config transport `type` fields must be strings when present. Malformed values
+  produce a shape finding without printing the value; unknown string transports
+  keep the existing low-severity compatibility warning.
 - The argument validator checks the top level of `inputSchema` (required,
   primitive types, enum, additionalProperties, boolean subschemas). Unknown or
   unsupported JSON Schema constructs are ignored - never reported as
@@ -352,8 +355,8 @@ The matcher also covers one JSON-string layer of escaped key/value quotes for
 its listed credential keys. Arbitrary encoding layers and escaped characters
 inside secret values are not a complete masking guarantee.
 
-Config checks validate field shapes before using them: `command`, `url` and
-`envFile` must be strings, `args` an array of strings and `env` an object of
+Config checks validate field shapes before using them: `command`, `url`, `envFile` and
+`type` must be strings, `args` an array of strings and `env` an object of
 string values. Malformed values produce `CFG_SHAPE` without echoing those values;
 they cannot count as launch or endpoint evidence. These remain shared-format
 checks rather than a guarantee that any specific client will accept the config.
