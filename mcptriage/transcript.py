@@ -167,7 +167,13 @@ class Session:
             if m.kind == _REQUEST:
                 requests.setdefault((type(m.msg_id), m.msg_id), []).append(m)
         consumed = set()
+        last_list_change_line = 0
         for m in visible:
+            if m.kind == _NOTIFICATION and m.method == "notifications/tools/list_changed":
+                # The capture gives no basis for assuming old definitions
+                # survived a list change. Require fresh catalog evidence.
+                tools.clear()
+                last_list_change_line = m.line_no
             if m.kind != _RESPONSE:
                 continue
             key = (type(m.msg_id), m.msg_id)
@@ -177,7 +183,8 @@ class Session:
             if key in consumed:
                 continue
             consumed.add(key)
-            if matches[0].method != "tools/list" or m.error() is not None:
+            if (matches[0].method != "tools/list" or m.error() is not None
+                    or matches[0].line_no < last_list_change_line):
                 continue
             result = m.result()
             if isinstance(result, dict) and isinstance(result.get("tools"), list):
