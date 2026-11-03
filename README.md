@@ -200,6 +200,11 @@ claim about everything that exists.
 - Config checks cover the common cross-client cases. Deep client-specific
   quirks belong to dedicated client checkers.
 
+Unreadable transcript or config inputs exit with a concise stderr error and status
+2, without publishing a partial report or echoing the raw OS error/path.
+`--exit-zero` applies to diagnostic findings, not input-read failures. This does
+not change the Python file-reading APIs, and internal errors are not hidden.
+
 ## Development
 
 ```bash
