@@ -186,6 +186,9 @@ claim about everything that exists.
 - Config transport `type` fields must be strings when present. Malformed values
   produce a shape finding without printing the value; unknown string transports
   keep the existing low-severity compatibility warning.
+- Long version-mismatch error details are omitted in reports. If a captured supported-
+  version value is too deeply nested to render, diagnosis keeps the error and
+  uses a short placeholder instead of aborting. This is not version-list validation.
 - The argument validator checks the top level of `inputSchema` (required,
   primitive types, enum, additionalProperties, boolean subschemas). Unknown or
   unsupported JSON Schema constructs are ignored - never reported as
