@@ -652,12 +652,13 @@ def rule_tool_call_problems(session: Session, strict: bool = False) -> List[Find
         if not isinstance(name, str):
             continue
         args = params.get("arguments")
-        schemas = session.tools_by_name(before_line=req.line_no)
         err = resp.error()
         if err is not None and _usable_error_code(err.get("code")) and err.get("code") == -32602:
             detail = ""
-            schema = schemas.get(name)
-            if schema and isinstance(args, dict):
+            schema = None
+            if isinstance(args, dict):
+                schema = session.tools_by_name(before_line=req.line_no).get(name)
+            if schema:
                 problems = validate_arguments(schema, args)
                 if problems:
                     detail = " Arguments violate the tool's own inputSchema: " + "; ".join(problems) + "."
