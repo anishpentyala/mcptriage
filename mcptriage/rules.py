@@ -633,10 +633,19 @@ def rule_schema_issues(session: Session, strict: bool = False) -> List[Finding]:
             elif not isinstance(schema, dict):
                 problems.append("tool '%s' inputSchema is not an object" % name)
             elif schema.get("type") not in (None, "object"):
-                problems.append(
-                    "tool '%s' inputSchema type is %r (clients expect 'object')"
-                    % (name, schema.get("type"))
-                )
+                declared = schema.get("type")
+                # Only canonical JSON type names are useful diagnostic values.
+                # Do not stringify arbitrary captured objects or unbounded text.
+                if isinstance(declared, str) and declared in _JSON_TYPES:
+                    problems.append(
+                        "tool '%s' inputSchema type is %r (clients expect 'object')"
+                        % (name, declared)
+                    )
+                else:
+                    problems.append(
+                        "tool '%s' inputSchema has a non-object type declaration "
+                        "(value omitted; clients expect 'object')" % name
+                    )
             if isinstance(schema, dict) and "required" in schema and not _valid_required(schema["required"]):
                 problems.append("tool '%s' required must be a list of unique strings" % name)
     if not problems:

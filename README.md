@@ -438,3 +438,9 @@ can provide a schema again, without rewriting calls sent before it. Identical
 repeated definitions are still ambiguous; this does not detect collisions across
 separate pages or servers. MCP recommends unique names within a server:
 [Tool Names](https://modelcontextprotocol.io/specification/2026-07-28/server/tools).
+
+Root `inputSchema.type` diagnostics keep canonical JSON type names, but omit
+arbitrary strings, arrays, objects and other malformed values rather than
+serializing them into report evidence. This is a targeted evidence guard, not a
+complete output sanitizer or a complete JSON Schema validator. Existing handling
+of missing/null root type declarations is unchanged.
