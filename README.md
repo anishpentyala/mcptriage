@@ -429,3 +429,12 @@ than being narrowed to their recognized members. Nested schemas, `anyOf`,
 `oneOf` and other JSON Schema keywords remain outside this targeted check.
 See [JSON Schema type](https://json-schema.org/understanding-json-schema/reference/type)
 and [null](https://json-schema.org/understanding-json-schema/reference/null).
+
+Repeated names within one captured `tools/list` response produce a medium
+`DUPLICATE_TOOL_NAMES` finding. No array-order winner is selected: schemas for
+those names, including older definitions, are omitted from call argument
+explanations. Other uniquely named tools remain usable. A later unique response
+can provide a schema again, without rewriting calls sent before it. Identical
+repeated definitions are still ambiguous; this does not detect collisions across
+separate pages or servers. MCP recommends unique names within a server:
+[Tool Names](https://modelcontextprotocol.io/specification/2026-07-28/server/tools).
