@@ -1,0 +1,2 @@
+# Optional qualification only. Not a runtime dependency of mcptriage.
+mcp==2.3.0
