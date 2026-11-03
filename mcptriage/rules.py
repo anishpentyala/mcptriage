@@ -8,6 +8,7 @@ are deterministic: same transcript, same findings.
 from __future__ import annotations
 
 import re
+from bisect import bisect_left
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
@@ -937,6 +938,31 @@ class _DiagnosisSession(Session):
     def __init__(self, session: Session):
         super().__init__(messages=session.messages)
         self._pairs = session.response_pairs()
+        # Only traffic with an ID ever used for tools/list can change catalog
+        # ownership. Include unrelated methods reusing those IDs and every
+        # response, not just successful list replies. Notifications invalidate
+        # a catalog without an ID. The index is local to this diagnosis pass.
+        list_ids = {(type(m.msg_id), m.msg_id)
+                    for m in self.messages
+                    if m.kind == "request" and m.method == "tools/list"}
+        self._catalog_events = sorted(
+            m.line_no for m in self.messages
+            if ((m.kind in ("request", "response")
+                 and (type(m.msg_id), m.msg_id) in list_ids)
+                or (m.kind == "notification"
+                    and m.method == "notifications/tools/list_changed")))
+        self._catalog_epoch = None
+        self._catalog_snapshot = None
+
+    def tools_by_name(self, before_line: Optional[int] = None):
+        # Consecutive failed calls between catalog events share one snapshot.
+        # Keep only the last snapshot, rather than retaining one copy per call.
+        epoch = (len(self._catalog_events) if before_line is None
+                 else bisect_left(self._catalog_events, before_line))
+        if epoch != self._catalog_epoch:
+            self._catalog_snapshot = super().tools_by_name(before_line=before_line)
+            self._catalog_epoch = epoch
+        return self._catalog_snapshot
 
     def response_for(self, request: Message) -> Optional[Message]:
         return self._pairs.get(id(request))
