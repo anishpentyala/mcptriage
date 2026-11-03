@@ -105,7 +105,19 @@ def _ev(message: Message) -> str:
 
 # ---------------------------------------------------------------- schema check
 
+_JSON_TYPES = {"string", "number", "integer", "boolean", "array", "object", "null"}
+
+
 def _type_ok(declared: Any, value: Any) -> bool:
+    if isinstance(declared, list):
+        # A malformed union is not evidence for a narrower supported subset.
+        if (not declared or not all(isinstance(item, str) and item in _JSON_TYPES
+                                    for item in declared)
+                or len(set(declared)) != len(declared)):
+            return True
+        return any(_type_ok(item, value) for item in declared)
+    if declared == "null":
+        return value is None
     if declared == "string":
         return isinstance(value, str)
     if declared == "number":
@@ -191,7 +203,8 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
         if declared is not None and not _type_ok(declared, value):
             problems.append(
                 "argument '%s' should be %s but got %s"
-                % (name, declared, type(value).__name__)
+                % (name, " or ".join(declared) if isinstance(declared, list) else declared,
+                   type(value).__name__)
             )
         enum = spec.get("enum")
         if isinstance(enum, list) and not any(_json_equal(value, item) for item in enum):
