@@ -444,3 +444,9 @@ arbitrary strings, arrays, objects and other malformed values rather than
 serializing them into report evidence. This is a targeted evidence guard, not a
 complete output sanitizer or a complete JSON Schema validator. Existing handling
 of missing/null root type declarations is unchanged.
+
+A captured `notifications/tools/list_changed` notification invalidates prior
+catalog schemas for subsequent calls until new paired `tools/list` evidence
+arrives. Earlier requests keep their request-time evidence. This conservative
+guard does not infer a replacement catalog from the notification or implement
+full pagination, authorization, or catalog-refresh semantics.
