@@ -463,3 +463,12 @@ ends that reuse window. Only the latest snapshot is kept, and no cache survives
 a diagnosis call. This avoids repeating full catalog scans for an unchanged
 catalog; captures alternating catalog changes and failed calls can still need
 repeated scans. The ownership and request-time evidence rules do not change.
+
+## Optional SDK transport qualification
+
+[`integration/sdk_lifecycle`](integration/sdk_lifecycle/README.md) runs a local
+synthetic MCP SDK2.3.0 stdio exchange through the diagnostics. It checks schema
+evidence before a tool-list change, conservative invalidation, and recovery after
+a fresh listing. It uses a separate Python3.10+ environment and does not add SDK
+dependencies to this package. It is not a network, Windows, raw-framing or full
+MCP-conformance claim.
