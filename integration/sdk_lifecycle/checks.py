@@ -1,6 +1,7 @@
 """Optional harness checks. Run with unittest inside the pinned SDK environment."""
 
 import json
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -60,6 +61,36 @@ class RunnerTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("source root must contain", result.stderr)
             self.assertFalse(out.exists())
+
+    def test_namespace_only_source_root_is_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            package = root / "mcptriage"
+            package.mkdir()
+            for name in ("rules.py", "transcript.py"):
+                shutil.copyfile(ROOT / "mcptriage" / name, package / name)
+            out = root / "out"
+            result = self.invoke("--head", root, "--output", out)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("source root must contain", result.stderr)
+            self.assertFalse(out.exists())
+
+    def test_redirected_import_origin_fails_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            package = root / "mcptriage"
+            package.mkdir()
+            for name in ("rules.py", "transcript.py"):
+                shutil.copyfile(ROOT / "mcptriage" / name, package / name)
+            (package / "__init__.py").write_text(
+                "__path__ = " + repr([str(ROOT / "mcptriage")]) + "\n"
+            )
+            out = root / "out"
+            result = self.invoke("--head", root, "--output", out)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("diagnostic source provenance mismatch", result.stderr)
+            self.assertTrue((out / "capture.jsonl").exists())
+            self.assertFalse((out / "result.json").exists())
 
     def test_existing_directory_is_not_modified(self):
         with tempfile.TemporaryDirectory() as d:
