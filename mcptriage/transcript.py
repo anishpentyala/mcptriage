@@ -245,7 +245,13 @@ class Session:
 def parse_text(text: str) -> Session:
     session = Session()
     decoder = json.JSONDecoder(object_pairs_hook=_unique_message_object)
-    for line_no, raw_line in enumerate(text.splitlines(), start=1):
+    # JSON Lines records end at LF; remove a CR only when it precedes LF.
+    # str.splitlines also splits valid Unicode characters inside JSON strings,
+    # silently destroying a tool description, argument, or request identifier.
+    records = text.split("\n")
+    for line_no, raw_line in enumerate(records, start=1):
+        if line_no < len(records) and raw_line.endswith("\r"):
+            raw_line = raw_line[:-1]
         line = raw_line.strip()
         if not line:
             continue
@@ -276,10 +282,10 @@ def parse_text(text: str) -> Session:
             # original line as unparsed instead of aborting the whole capture.
             pass
         if duplicate_keys:
-            session.messages.append(Message(line_no, raw_line.rstrip("\n"), None, "duplicate_json_key"))
+            session.messages.append(Message(line_no, raw_line, None, "duplicate_json_key"))
             continue
         if obj is None:
-            session.messages.append(Message(line_no, raw_line.rstrip("\n"), None, _UNPARSED))
+            session.messages.append(Message(line_no, raw_line, None, _UNPARSED))
             continue
         # Preserve number-valued IDs exactly before integer normalization.
         # A float round-trip could alias 9007199254740993.0 with 9007199254740992.
@@ -289,10 +295,10 @@ def parse_text(text: str) -> Session:
             obj["id"] = precise["id"]
         kind, method, msg_id = _classify(obj)
         if kind == _UNPARSED:
-            session.messages.append(Message(line_no, raw_line.rstrip("\n"), None, _UNPARSED))
+            session.messages.append(Message(line_no, raw_line, None, _UNPARSED))
         else:
             session.messages.append(
-                Message(line_no, raw_line.rstrip("\n"), obj, kind, method, msg_id, extracted)
+                Message(line_no, raw_line, obj, kind, method, msg_id, extracted)
             )
     return session
 
