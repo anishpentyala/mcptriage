@@ -245,7 +245,10 @@ class Session:
 def parse_text(text: str) -> Session:
     session = Session()
     decoder = json.JSONDecoder(object_pairs_hook=_unique_message_object)
-    for line_no, raw_line in enumerate(text.splitlines(), start=1):
+    # JSON Lines records end at LF (CRLF is accepted by strip below).
+    # str.splitlines also splits valid Unicode characters inside JSON strings,
+    # silently destroying a tool description, argument, or request identifier.
+    for line_no, raw_line in enumerate(text.split("\n"), start=1):
         line = raw_line.strip()
         if not line:
             continue
