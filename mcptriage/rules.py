@@ -348,8 +348,33 @@ _TOOLS_LIST_ERROR_DETAIL = {
 }
 
 
+def _list_startup_context(session: Session):
+    """Latest earlier initialize attempt, not a future or superseded success.
+
+    Object result is the existing startup evidence threshold, not complete
+    InitializeResult validation. Return an indexed lookup for repeated failures.
+    """
+    attempts = session.requests("initialize")
+    lines = [m.line_no for m in attempts]
+    pairs = session.response_pairs()
+
+    def context(request):
+        index = bisect_left(lines, request.line_no) - 1
+        response = pairs.get(id(attempts[index])) if index >= 0 else None
+        if (response is not None and response.line_no < request.line_no
+                and isinstance(response.result(), dict)):
+            return (" An earlier initialize returned an object result before this "
+                    "list request; this is not full startup validation.",
+                    " | earlier initialize: " + _ev(response))
+        return (" Successful initialize before this list request is not established "
+                "by the latest captured initialize attempt. The list error itself "
+                "is still observed.", "")
+    return context
+
+
 def rule_tools_list_error(session: Session, strict: bool = False) -> List[Finding]:
     findings = []
+    startup_context = _list_startup_context(session)
     for req in session.requests("tools/list"):
         resp = session.response_for(req)
         if resp is None:
@@ -376,12 +401,13 @@ def rule_tools_list_error(session: Session, strict: bool = False) -> List[Findin
                 except RecursionError:
                     detail_summary = "[version details too deeply nested to display]"
                 extra = " Server supports: %s." % detail_summary
+        startup, startup_evidence = startup_context(req)
         findings.append(Finding(
             "TOOLS_LIST_ERROR", HIGH,
             "tools/list failed: %s" % detail,
-            "%s | %s" % (_ev(req), _ev(resp)),
-            "The client shows 'connected' because initialize succeeded, but the tools "
-            "list never loads.%s" % extra,
+            "%s | %s%s" % (_ev(req), _ev(resp), startup_evidence),
+            "The captured tools/list request returned a protocol error, so this "
+            "exchange did not supply a successful tool list.%s%s" % (startup, extra),
             fix,
         ))
     return findings
@@ -480,19 +506,21 @@ def rule_session_id_lost(session: Session, strict: bool = False) -> List[Finding
 
 def rule_auth_on_list(session: Session, strict: bool = False) -> List[Finding]:
     findings = []
+    startup_context = _list_startup_context(session)
     for req in session.requests("tools/list"):
         resp = session.response_for(req)
         if resp is None:
             continue
         err = resp.error()
         if err is not None and _looks_auth(err):
+            startup, startup_evidence = startup_context(req)
             findings.append(Finding(
                 "AUTH_ON_LIST", HIGH,
-                "tools/list was rejected for authentication while initialize succeeded",
-                "%s | %s" % (_ev(req), _ev(resp)),
-                "Clients treat a successful initialize as 'connected' and many do not "
-                "surface a 401 on tools/list as a sign-in challenge, so the server "
-                "looks connected but shows no tools.",
+                "tools/list returned an error containing authentication markers",
+                "%s | %s%s" % (_ev(req), _ev(resp), startup_evidence),
+                "The captured list error contains authentication markers. Many "
+                "clients do not surface such a list error as a sign-in challenge."
+                + startup,
                 "Return the 401 challenge on the first request (initialize) so the "
                 "client starts OAuth before reporting the server as connected.",
             ))

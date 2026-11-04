@@ -472,3 +472,14 @@ evidence before a tool-list change, conservative invalidation, and recovery afte
 a fresh listing. It uses a separate Python3.10+ environment and does not add SDK
 dependencies to this package. It is not a network, Windows, raw-framing or full
 MCP-conformance claim.
+
+### Startup context in list-error findings
+
+A captured `tools/list` error does not by itself prove that initialization
+succeeded. Authentication and protocol-error findings keep the observed list
+failure, but describe startup success as unestablished unless the latest earlier
+captured initialize attempt has an unambiguously paired object result before
+that list request. When present, that response is cited as separate evidence.
+A pending, failed, malformed, ambiguous or future initialize exchange does not
+supply that context. Object-result evidence is not full InitializeResult
+validation or proof that the application completed startup.
