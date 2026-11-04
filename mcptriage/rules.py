@@ -925,7 +925,22 @@ def rule_unusable_response(session: Session, strict: bool = False) -> List[Findi
        if message.kind == "response" and not message.usable_response()]
 
 
+def rule_duplicate_json_key(session: Session, strict: bool = False) -> List[Finding]:
+    return [Finding(
+        "DUPLICATE_JSON_KEY", HIGH,
+        "captured JSON object contains repeated member names",
+        "line %d: [ambiguous JSON object; names and values omitted]" % message.line_no,
+        "A parser could choose different values for repeated members. This line "
+        "is retained but excluded from protocol pairing, startup and schema evidence; "
+        "no nested substitute message is extracted from it.",
+        "Check the emitting client, server or capture adapter and recapture "
+        "objects with unique member names. Do not choose a duplicate value by hand "
+        "and call it evidence of the original exchange.",
+    ) for message in session.messages if message.kind == "duplicate_json_key"]
+
+
 ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
+    rule_duplicate_json_key,
     rule_unusable_response,
     rule_invalid_rpc_id,
     rule_unusable_error_code,

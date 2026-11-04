@@ -404,10 +404,28 @@ original line as unparsed evidence and continue other lines, without extracting
 nested substitute traffic. This is not arbitrary-depth parsing or a general
 resource-containment guarantee.
 
+Repeated JSON object member names are not unique protocol evidence. The parser
+retains the original line but excludes the entire ambiguous object, including
+prefixed log objects, from request/response pairing and startup/schema evidence.
+`DUPLICATE_JSON_KEY` is a high-severity finding with the line number only; member
+names and values are omitted from that diagnostic. No nested substitute message
+is extracted. Other lines continue to be checked. This does not determine which
+value a client or server used, validate a complete exchange, or repair its data.
+
+
 Config JSON decoding failures caused by runtime integer or nesting limits produce
 high-severity `CFG_JSON_LIMIT` without echoing rejected values. Ordinary JSON
 syntax errors retain `CFG_JSON_ERROR` and their line/column position. A runtime
 limit does not prove the JSON syntax itself is invalid; no server checks ran.
+
+Repeated JSON object keys produce high-severity `CFG_JSON_DUPLICATE_KEY`.
+For example, two `command` keys must not become a clean last-value-wins
+launch check. This applies to every object in the config, including server
+maps and nested environment maps; no server entries are checked until the
+ambiguity is removed. Repeated names and values are not included in the
+finding. It does not predict which duplicate value a particular client uses.
+Same names in distinct objects and repeated array values remain valid.
+
 
 Diagnosis builds one chronological response-ownership index for that pass and
 shares it across rules. The index is not kept on the mutable caller session,

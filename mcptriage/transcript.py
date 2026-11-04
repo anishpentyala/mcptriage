@@ -24,6 +24,19 @@ _INVALID_ID = "invalid_id"
 _BRACE = re.compile(r"\{")
 
 
+class _DuplicateMessageKey(ValueError):
+    """Do not choose a winner from ambiguous JSON object members."""
+
+
+def _unique_message_object(pairs):
+    obj = {}
+    for key, value in pairs:
+        if key in obj:
+            raise _DuplicateMessageKey
+        obj[key] = value
+    return obj
+
+
 def _precise_number(value: str) -> Decimal:
     """Keep exact numeric IDs, including an invalid marker for extreme exponents."""
     try:
@@ -99,7 +112,7 @@ class Session:
 
     @property
     def parsed(self) -> List[Message]:
-        return [m for m in self.messages if m.kind not in (_UNPARSED, _INVALID_ID)]
+        return [m for m in self.messages if m.kind not in (_UNPARSED, _INVALID_ID, "duplicate_json_key")]
 
     @property
     def unparsed(self) -> List[Message]:
@@ -226,15 +239,16 @@ class Session:
 
 def parse_text(text: str) -> Session:
     session = Session()
-    decoder = json.JSONDecoder()
+    decoder = json.JSONDecoder(object_pairs_hook=_unique_message_object)
     for line_no, raw_line in enumerate(text.splitlines(), start=1):
         line = raw_line.strip()
         if not line:
             continue
         obj = None
         extracted = False
+        duplicate_keys = False
         try:
-            obj = json.loads(line)
+            obj = json.loads(line, object_pairs_hook=_unique_message_object)
         except json.JSONDecodeError:
             for match in _BRACE.finditer(line):
                 try:
@@ -243,14 +257,22 @@ def parse_text(text: str) -> Session:
                     break
                 except json.JSONDecodeError:
                     continue
+                except _DuplicateMessageKey:
+                    duplicate_keys = True
+                    break
                 except (ValueError, RecursionError):
                     # Decoder resource limits are not framing errors. Do not
                     # search deeper and invent traffic from a nested object.
                     break
+        except _DuplicateMessageKey:
+            duplicate_keys = True
         except (ValueError, RecursionError):
             # The runtime may bound integer decoding or nesting depth. Preserve the
             # original line as unparsed instead of aborting the whole capture.
             pass
+        if duplicate_keys:
+            session.messages.append(Message(line_no, raw_line.rstrip("\n"), None, "duplicate_json_key"))
+            continue
         if obj is None:
             session.messages.append(Message(line_no, raw_line.rstrip("\n"), None, _UNPARSED))
             continue
