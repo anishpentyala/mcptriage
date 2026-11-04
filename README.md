@@ -192,6 +192,11 @@ claim about everything that exists.
 - Tool schemas are looked up for call-argument validation only after an invalid-
   params response with object arguments. Successful calls and other outcomes do
   not rebuild a catalog they do not use.
+- A successfully observed first page of `tools/list` starts a fresh catalog for
+  later argument checks, including when the new tools list is empty. Continuation
+  pages keep earlier pages; failed or malformed listings do not prove an empty
+  catalog. Earlier calls retain their earlier observed schema evidence. This is
+  not a complete pagination, cache, authorization or transport-session model.
 - The argument validator checks the top level of `inputSchema` (required,
   primitive types, enum, additionalProperties, boolean subschemas). Unknown or
   unsupported JSON Schema constructs are ignored - never reported as
@@ -501,3 +506,11 @@ that list request. When present, that response is cited as separate evidence.
 A pending, failed, malformed, ambiguous or future initialize exchange does not
 supply that context. Object-result evidence is not full InitializeResult
 validation or proof that the application completed startup.
+
+A successful observed first `tools/list` page (an object-valued request params
+without `cursor`, or omitted params) starts a new schema-evidence listing.
+Tools omitted from that refresh no longer supply argument explanations for
+later calls. Continuation pages still merge their tool definitions, including
+an empty-string cursor. Calls before the refresh retain their earlier evidence.
+This does not prove authorization equivalence, cache lifetime or full pagination
+completion, and does not infer an empty catalog from a failed list request.
