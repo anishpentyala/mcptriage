@@ -82,3 +82,28 @@ def test_unicode_identifier_remains_pairable_control():
     s=parse_text('\n'.join(json.dumps(r,ensure_ascii=False) for r in rows))
     assert len(s.requests())==1, 'Unicode request identifier must remain a single request'
     assert s.response_for(s.requests()[0]) is not None
+
+@pytest.mark.parametrize('row', [
+    '{"id":1,"method":"tools/list"}',
+    '[mcp] {"id":1,"result":{"tools":[]}}',
+    'not JSON',
+    '{"id":1,"id":2}',
+    '[]',
+])
+def test_direct_crlf_raw_excludes_only_record_delimiter(row):
+    message = parse_text(row + '\r\n').messages[0]
+    assert message.raw == row, 'CRLF terminator must not enter diagnostic raw evidence'
+
+@pytest.mark.parametrize('suffix', ['\r', '\r\r'])
+def test_bare_final_cr_is_not_silently_removed_from_raw(suffix):
+    row = '{"id":1,"method":"tools/list"}' + suffix
+    assert parse_text(row).messages[0].raw == row
+
+def test_crlf_removes_exactly_one_terminator_cr():
+    row = '{"id":1,"method":"tools/list"}\r'
+    assert parse_text(row + '\r\n').messages[0].raw == row
+
+def test_escaped_carriage_return_inside_json_value_is_preserved():
+    row = json.dumps({'id': 'left\rright', 'method': 'tools/list'})
+    m = parse_text(row + '\r\n').messages[0]
+    assert m.raw == row and m.msg_id == 'left\rright'
