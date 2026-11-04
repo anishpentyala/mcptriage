@@ -201,6 +201,11 @@ class Session:
                 continue
             result = m.result()
             if isinstance(result, dict) and isinstance(result.get("tools"), list):
+                params = matches[0].obj.get("params", {})
+                if isinstance(params, dict) and "cursor" not in params:
+                    # A successful first page starts a new observed listing.
+                    # Keep linked pagination pages, not tools omitted on refresh.
+                    tools.clear()
                 seen_names = set()
                 duplicate_names = set()
                 for tool in result["tools"]:
