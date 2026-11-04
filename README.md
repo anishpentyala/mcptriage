@@ -514,3 +514,13 @@ later calls. Continuation pages still merge their tool definitions, including
 an empty-string cursor. Calls before the refresh retain their earlier evidence.
 This does not prove authorization equivalence, cache lifetime or full pagination
 completion, and does not infer an empty catalog from a failed list request.
+
+### Physical transcript records
+
+JSON Lines records are separated by LF; CRLF is accepted too. Unicode NEL,
+LINE SEPARATOR and PARAGRAPH SEPARATOR inside JSON strings are data, not
+record boundaries. Tool descriptions, arguments and string request IDs keep
+those characters without losing the catalog or inventing a missing response.
+Escaped and literal forms of the same Unicode string have the same protocol
+meaning. This does not decode pretty-printed multi-line JSON or validate raw
+transport framing.
