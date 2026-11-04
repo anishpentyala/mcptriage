@@ -20,6 +20,19 @@ from .rules import Finding, HIGH, LOW, MEDIUM
 _ENV_REF = re.compile(r"\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
+class _DuplicateConfigKey(ValueError):
+    """A repeated JSON key makes the config ambiguous; never retain its text."""
+
+
+def _unique_config_object(pairs):
+    obj = {}
+    for key, value in pairs:
+        if key in obj:
+            raise _DuplicateConfigKey
+        obj[key] = value
+    return obj
+
+
 def _servers_from(obj: Any) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     if not isinstance(obj, dict):
         return None, None
@@ -33,7 +46,7 @@ def _servers_from(obj: Any) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
 def check_config_text(text: str, path: str = "<config>") -> List[Finding]:
     findings: List[Finding] = []
     try:
-        obj = json.loads(text)
+        obj = json.loads(text, object_pairs_hook=_unique_config_object)
     except json.JSONDecodeError as exc:
         return [Finding(
             "CFG_JSON_ERROR", HIGH,
@@ -43,6 +56,17 @@ def check_config_text(text: str, path: str = "<config>") -> List[Finding]:
             "never appears.",
             "Fix the JSON syntax at the reported position (common causes: trailing "
             "commas, unquoted backslashes in Windows paths).",
+        )]
+    except _DuplicateConfigKey:
+        return [Finding(
+            "CFG_JSON_DUPLICATE_KEY", HIGH,
+            "config contains repeated JSON object keys",
+            path,
+            "Different parsers can select different values for a repeated key. "
+            "Checking only one value could hide a server or launch setting, "
+            "so no server entries were checked.",
+            "Remove repeated keys, retaining the intended settings explicitly, "
+            "then run the check again. Repeated names and values are not echoed.",
         )]
     except (ValueError, RecursionError):
         return [Finding(
