@@ -699,3 +699,25 @@ This is a supported-subset expansion after observed rejection, not full JSON
 Schema validation or a scan of successful calls. Source:
 [JSON Schema validation 2020-12, section 6.2.1](https://json-schema.org/draft/2020-12/json-schema-validation),
 checked 2026-11-05.
+
+### Duplicate array-item explanations
+
+After an observed invalid-params `tools/call` rejection, supported top-level
+argument properties with literal `uniqueItems: true` can explain a duplicate
+array value. Comparison uses the existing iterative JSON equality: objects
+ignore key order, arrays retain order, booleans do not alias numbers, and
+numerically equal wire numbers retain exact decimal identity. Non-array
+instances and missing, false or malformed keyword values supply no evidence.
+
+Each property checks at most 4,096 item pairs in index order. If that budget
+runs out without a proven duplicate, no uniqueness explanation is made; a
+later duplicate may therefore be missed. Other supported checks continue.
+This bounds pair attempts, not total nested-value traversal or all diagnosis
+work. A proven early duplicate is still explained even in a long array.
+New explanation text omits duplicate values; existing raw report evidence
+still uses only best-effort redaction. Successful calls are not scanned.
+This adds one supported keyword, not full JSON Schema validation or a claim
+that the previous version promised uniqueness validation.
+
+Source: [JSON Schema validation 2020-12, section 6.4.3](https://json-schema.org/draft/2020-12/json-schema-validation),
+checked 2026-11-05.
