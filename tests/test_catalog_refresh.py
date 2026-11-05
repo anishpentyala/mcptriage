@@ -31,6 +31,8 @@ def test_empty_refresh_does_not_explain_failure_with_removed_schema_control():
 @pytest.mark.parametrize('cursor',['next',''])
 def test_continuation_page_still_merges_observed_tools(cursor):
     s=session({'tools':[NEW]}, {'cursor':cursor})
+    # Continuations are linked to a cursor advertised by the first page.
+    s.messages[1].obj['result']['nextCursor'] = cursor
     assert set(s.tools_by_name())=={'old','new'}
 
 
