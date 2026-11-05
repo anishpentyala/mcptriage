@@ -169,7 +169,11 @@ class Session:
         return orphans
 
     def tools_by_name(self, before_line: Optional[int] = None) -> Dict[str, Dict[str, Any]]:
-        """Tool name -> inputSchema from tools/list results seen so far."""
+        """Tool name -> unambiguous inputSchema from linked list pages."""
+        return self._catalog_state(before_line)[0]
+
+    def _catalog_state(self, before_line: Optional[int] = None):
+        """Catalog plus observed cross-page name collisions for diagnostics."""
         tools: Dict[str, Dict[str, Any]] = {}
         visible = [m for m in self.messages
                    if before_line is None or m.line_no < before_line]
@@ -185,6 +189,9 @@ class Session:
         # Retain its advertisement line: a speculative earlier request cannot
         # borrow a cursor that appears later in the capture.
         next_page = None
+        catalog_names = set()
+        ambiguous_names = set()
+        page_collisions = []
         for m in visible:
             if ((m.kind == _NOTIFICATION and m.method == "notifications/tools/list_changed")
                     or (m.kind == _REQUEST and m.method == "initialize")):
@@ -192,6 +199,8 @@ class Session:
                 # establishes that old definitions/cursors are still current.
                 # Require a fresh listing, even if initialization fails.
                 tools.clear()
+                catalog_names.clear()
+                ambiguous_names.clear()
                 next_page = None
                 last_list_change_line = m.line_no
             if m.kind != _RESPONSE:
@@ -221,6 +230,8 @@ class Session:
                     # A successful first page starts a new observed listing.
                     # Keep linked pagination pages, not tools omitted on refresh.
                     tools.clear()
+                    catalog_names.clear()
+                    ambiguous_names.clear()
                 cursor = result.get("nextCursor")
                 next_page = (cursor, m.line_no) if isinstance(cursor, str) else None
                 seen_names = set()
@@ -231,16 +242,21 @@ class Session:
                         if name in seen_names:
                             duplicate_names.add(name)
                         seen_names.add(name)
-                # A single response with repeated names gives no basis for
+                collisions = seen_names & catalog_names
+                if collisions:
+                    page_collisions.append((m, len(collisions)))
+                catalog_names.update(seen_names)
+                ambiguous_names.update(duplicate_names | collisions)
+                # Repeated names within or across linked pages give no basis for
                 # choosing a schema. Do not retain an older schema as current.
-                for name in duplicate_names:
+                for name in ambiguous_names:
                     tools.pop(name, None)
                 for t in result["tools"]:
                     if (isinstance(t, dict) and isinstance(t.get("name"), str)
-                            and t["name"] not in duplicate_names):
+                            and t["name"] not in ambiguous_names):
                         schema = t.get("inputSchema")
                         tools[t["name"]] = schema if isinstance(schema, dict) else {}
-        return tools
+        return tools, page_collisions
 
     def has_modern_markers(self) -> bool:
         """True if any message carries 2026-era protocol markers."""
