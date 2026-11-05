@@ -208,6 +208,40 @@ def _numeric_bound_problems(spec: dict, value: Any, name: str) -> List[str]:
     return problems
 
 
+def _multiple_of_problem(spec: dict, value: Any, name: str) -> List[str]:
+    number = _exact_bound_number(value)
+    divisor = _exact_bound_number(spec.get("multipleOf"))
+    if number is None or divisor is None or divisor <= 0:
+        return []
+    if number.is_zero():
+        return []
+    left, right = number.as_tuple(), divisor.as_tuple()
+    # Bound coefficient work independently of decimal exponent size. An
+    # unsupported constraint cannot establish an argument violation.
+    if len(left.digits) > 4300 or len(right.digits) > 4300:
+        return []
+    def coefficient(digits):
+        result = 0
+        for digit in digits:
+            result = result * 10 + digit
+        return result
+    a, b = coefficient(left.digits), coefficient(right.digits)
+    shift = left.exponent - right.exponent
+    if shift >= 0:
+        # Modular exponentiation never materializes 10**shift.
+        multiple = (a % b) * pow(10, shift, b) % b == 0
+    else:
+        quotient, remainder = divmod(a, b)
+        zeros = 0
+        while quotient and quotient % 10 == 0:
+            quotient //= 10
+            zeros += 1
+        multiple = remainder == 0 and zeros >= -shift
+    if multiple:
+        return []
+    return ["argument '%s' violates multipleOf (values omitted)" % name]
+
+
 def _size_problems(spec: dict, value: Any, name: str) -> List[str]:
     """Supported instance-size keywords, without coercion or content echoes."""
     if isinstance(value, str):
@@ -295,6 +329,7 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
             )
         problems.extend(_numeric_bound_problems(spec, value, name))
         problems.extend(_size_problems(spec, value, name))
+        problems.extend(_multiple_of_problem(spec, value, name))
         enum = spec.get("enum")
         if isinstance(enum, list) and not any(_json_equal(value, item) for item in enum):
             problems.append("argument '%s' is not one of %s" % (name, _enum_summary(enum)))
