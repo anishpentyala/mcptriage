@@ -656,3 +656,24 @@ unchanged. Successful calls are not scanned for new schema violations.
 Source: [JSON Schema validation 2020-12, sections 6.2.2-6.2.5](https://json-schema.org/draft/2020-12/json-schema-validation),
 checked 2026-11-05. This is a supported-subset expansion, not a claim that the
 previous version promised numeric-bound validation.
+
+### String, array and object size explanations
+
+After an observed invalid-params `tools/call` rejection, supported top-level
+argument properties also check `minLength`/`maxLength` for strings,
+`minItems`/`maxItems` for arrays and `minProperties`/`maxProperties` for objects.
+Bounds must be nonnegative integer-valued numbers; booleans, fractions,
+negative numbers, nonfinite values and other malformed bounds supply no
+size evidence. Equality satisfies both inclusive limits.
+
+String length counts decoded Unicode code points, not UTF-8 bytes or visible
+grapheme clusters. Array size counts immediate elements and object size counts
+immediate keys, without recursively validating their contents. Keywords for
+another instance kind have no effect. New explanations omit the content and
+bound values, but existing raw report evidence retains only its best-effort
+redaction. Successful calls are not scanned for new violations. This is a
+supported-subset expansion, not full JSON Schema validation or a claim that
+the previous version promised these checks.
+
+Source: [JSON Schema validation 2020-12](https://json-schema.org/draft/2020-12/json-schema-validation),
+sections 6.3.1-6.3.2, 6.4.1-6.4.2 and 6.5.1-6.5.2, checked 2026-11-05.
