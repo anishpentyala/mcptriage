@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from bisect import bisect_left
 from dataclasses import dataclass
+from decimal import Decimal
+import math
 from typing import Any, Callable, Dict, List, Optional
 
 from .transcript import Message, Session, WireNumber
@@ -175,6 +177,37 @@ def _json_equal(left: Any, right: Any) -> bool:
     return True
 
 
+def _exact_bound_number(value: Any):
+    """Finite JSON numbers only; comparisons must not round through float."""
+    if isinstance(value, WireNumber):
+        return value.exact if value.exact.is_finite() else None
+    if type(value) is int:
+        return Decimal(value)
+    if type(value) is float and math.isfinite(value):
+        return Decimal.from_float(value)
+    return None
+
+
+def _numeric_bound_problems(spec: dict, value: Any, name: str) -> List[str]:
+    number = _exact_bound_number(value)
+    if number is None:
+        return []
+    problems = []
+    for keyword in ("minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"):
+        bound = _exact_bound_number(spec.get(keyword))
+        if bound is None:
+            continue  # malformed bounds and draft-04 boolean modifiers are not evidence
+        violated = ((keyword == "minimum" and number < bound)
+                    or (keyword == "maximum" and number > bound)
+                    or (keyword == "exclusiveMinimum" and number <= bound)
+                    or (keyword == "exclusiveMaximum" and number >= bound))
+        if violated:
+            # Do not echo captured values or invoke unbounded numeric rendering.
+            problems.append("argument '%s' violates numeric %s (values omitted)"
+                            % (name, keyword))
+    return problems
+
+
 def _enum_summary(enum: list) -> str:
     try:
         summary = redact(str(enum))
@@ -237,6 +270,7 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
                 % (name, " or ".join(declared) if isinstance(declared, list) else declared,
                    type(value).__name__)
             )
+        problems.extend(_numeric_bound_problems(spec, value, name))
         enum = spec.get("enum")
         if isinstance(enum, list) and not any(_json_equal(value, item) for item in enum):
             problems.append("argument '%s' is not one of %s" % (name, _enum_summary(enum)))
