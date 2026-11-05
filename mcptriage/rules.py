@@ -909,6 +909,20 @@ def rule_invalid_rpc_id(session: Session, strict: bool = False) -> List[Finding]
     ) for message in session.messages if message.kind == "invalid_id"]
 
 
+def rule_invalid_rpc_version(session: Session, strict: bool = False) -> List[Finding]:
+    return [Finding(
+        "INVALID_RPC_VERSION", HIGH,
+        "captured jsonrpc member is not the string 2.0",
+        _ev(message),
+        "JSON-RPC 2.0 requires a present jsonrpc member to be exactly the "
+        "string 2.0. This line is retained but cannot establish requests, "
+        "responses or tool schemas. Captures omitting the member keep the "
+        "existing permissive behavior; this is not full protocol validation.",
+        "Check the emitting client/server or capture adapter and preserve "
+        "the actual protocol version without coercing it.",
+    ) for message in session.messages if message.kind == "invalid_rpc_version"]
+
+
 def rule_invalid_rpc_method(session: Session, strict: bool = False) -> List[Finding]:
     return [Finding(
         "INVALID_RPC_METHOD", HIGH,
@@ -1004,6 +1018,7 @@ ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
     rule_unusable_response,
     rule_invalid_rpc_id,
     rule_invalid_rpc_method,
+    rule_invalid_rpc_version,
     rule_unusable_error_code,
     rule_unusable_tool_name,
     rule_unusable_params,

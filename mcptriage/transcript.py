@@ -72,6 +72,8 @@ def _classify(obj: Any):
     """Return (kind, method, msg_id) for a parsed JSON value."""
     if not isinstance(obj, dict):
         return _UNPARSED, None, None
+    if "jsonrpc" in obj and obj["jsonrpc"] != "2.0":
+        return "invalid_rpc_version", None, None
     method = obj.get("method")
     if "method" in obj and not isinstance(method, str):
         # A present null method is not an absent method/response envelope.
@@ -138,7 +140,7 @@ class Session:
 
     @property
     def parsed(self) -> List[Message]:
-        return [m for m in self.messages if m.kind not in (_UNPARSED, _INVALID_ID, "duplicate_json_key", "invalid_method")]
+        return [m for m in self.messages if m.kind not in (_UNPARSED, _INVALID_ID, "duplicate_json_key", "invalid_method", "invalid_rpc_version")]
 
     @property
     def unparsed(self) -> List[Message]:
