@@ -48,12 +48,34 @@ def _precise_number(value: str) -> Decimal:
         return Decimal("NaN")
 
 
+
+class WireNumber(float):
+    """Float-compatible decoded value retaining the wire's exact decimal.
+
+    Ordinary consumers retain the existing float API. Schema diagnostics and
+    ID classification must use exact, not this object's rounded float value.
+    """
+    def __new__(cls, text):
+        value = super().__new__(cls, text)
+        value.exact = _precise_number(text)
+        value.wire = text
+        return value
+
+    def __repr__(self):
+        return self.wire
+
+    def __str__(self):
+        return self.wire
+
+
 def _classify(obj: Any):
     """Return (kind, method, msg_id) for a parsed JSON value."""
     if not isinstance(obj, dict):
         return _UNPARSED, None, None
     method = obj.get("method")
     identifier = obj.get("id")
+    if isinstance(identifier, WireNumber):
+        identifier = identifier.exact
     # JSON numbers with an integral value (1.0 or 1e0) are integer IDs too.
     if (isinstance(identifier, Decimal) and identifier.is_finite()
             and identifier.adjusted() < 4300
@@ -277,7 +299,7 @@ class Session:
 
 def parse_text(text: str) -> Session:
     session = Session()
-    decoder = json.JSONDecoder(object_pairs_hook=_unique_message_object)
+    decoder = json.JSONDecoder(object_pairs_hook=_unique_message_object, parse_float=WireNumber)
     # JSON Lines records end at LF; remove a CR only when it precedes LF.
     # str.splitlines also splits valid Unicode characters inside JSON strings,
     # silently destroying a tool description, argument, or request identifier.
@@ -292,7 +314,7 @@ def parse_text(text: str) -> Session:
         extracted = False
         duplicate_keys = False
         try:
-            obj = json.loads(line, object_pairs_hook=_unique_message_object)
+            obj = json.loads(line, object_pairs_hook=_unique_message_object, parse_float=WireNumber)
         except json.JSONDecodeError:
             for match in _BRACE.finditer(line):
                 try:
@@ -320,12 +342,6 @@ def parse_text(text: str) -> Session:
         if obj is None:
             session.messages.append(Message(line_no, raw_line, None, _UNPARSED))
             continue
-        # Preserve number-valued IDs exactly before integer normalization.
-        # A float round-trip could alias 9007199254740993.0 with 9007199254740992.
-        if isinstance(obj, dict) and type(obj.get("id")) is float:
-            source = line[match.start():] if extracted else line
-            precise, _ = json.JSONDecoder(parse_float=_precise_number).raw_decode(source)
-            obj["id"] = precise["id"]
         kind, method, msg_id = _classify(obj)
         if kind == _UNPARSED:
             session.messages.append(Message(line_no, raw_line, None, _UNPARSED))
