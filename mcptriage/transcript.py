@@ -24,6 +24,14 @@ _INVALID_ID = "invalid_id"
 _BRACE = re.compile(r"\{")
 
 
+class _NonfiniteJSONConstant(ValueError):
+    """Non-JSON numeric literals cannot supply protocol evidence."""
+
+
+def _reject_constant(value):
+    raise _NonfiniteJSONConstant
+
+
 class _DuplicateMessageKey(ValueError):
     """Do not choose a winner from ambiguous JSON object members."""
 
@@ -140,7 +148,7 @@ class Session:
 
     @property
     def parsed(self) -> List[Message]:
-        return [m for m in self.messages if m.kind not in (_UNPARSED, _INVALID_ID, "duplicate_json_key", "invalid_method", "invalid_rpc_version")]
+        return [m for m in self.messages if m.kind not in (_UNPARSED, _INVALID_ID, "duplicate_json_key", "invalid_method", "invalid_rpc_version", "nonfinite_json_constant")]
 
     @property
     def unparsed(self) -> List[Message]:
@@ -305,7 +313,7 @@ class Session:
 
 def parse_text(text: str) -> Session:
     session = Session()
-    decoder = json.JSONDecoder(object_pairs_hook=_unique_message_object, parse_float=WireNumber)
+    decoder = json.JSONDecoder(object_pairs_hook=_unique_message_object, parse_float=WireNumber, parse_constant=_reject_constant)
     # JSON Lines records end at LF; remove a CR only when it precedes LF.
     # str.splitlines also splits valid Unicode characters inside JSON strings,
     # silently destroying a tool description, argument, or request identifier.
@@ -319,8 +327,9 @@ def parse_text(text: str) -> Session:
         obj = None
         extracted = False
         duplicate_keys = False
+        nonfinite_constant = False
         try:
-            obj = json.loads(line, object_pairs_hook=_unique_message_object, parse_float=WireNumber)
+            obj = json.loads(line, object_pairs_hook=_unique_message_object, parse_float=WireNumber, parse_constant=_reject_constant)
         except json.JSONDecodeError:
             for match in _BRACE.finditer(line):
                 try:
@@ -329,6 +338,9 @@ def parse_text(text: str) -> Session:
                     break
                 except json.JSONDecodeError:
                     continue
+                except _NonfiniteJSONConstant:
+                    nonfinite_constant = True
+                    break
                 except _DuplicateMessageKey:
                     duplicate_keys = True
                     break
@@ -336,12 +348,17 @@ def parse_text(text: str) -> Session:
                     # Decoder resource limits are not framing errors. Do not
                     # search deeper and invent traffic from a nested object.
                     break
+        except _NonfiniteJSONConstant:
+            nonfinite_constant = True
         except _DuplicateMessageKey:
             duplicate_keys = True
         except (ValueError, RecursionError):
             # The runtime may bound integer decoding or nesting depth. Preserve the
             # original line as unparsed instead of aborting the whole capture.
             pass
+        if nonfinite_constant:
+            session.messages.append(Message(line_no, raw_line, None, "nonfinite_json_constant"))
+            continue
         if duplicate_keys:
             session.messages.append(Message(line_no, raw_line, None, "duplicate_json_key"))
             continue
