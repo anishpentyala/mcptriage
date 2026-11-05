@@ -648,9 +648,8 @@ best-effort redaction, not a new privacy guarantee.
 
 Missing, nonnumeric, boolean and nonfinite bounds supply no bound evidence.
 Nonnumeric arguments supply no bound evidence either; supported `type`, `enum`
-and `required` checks still run. Boolean draft-04 exclusive-bound modifiers,
-`multipleOf`, nested property traversal and general JSON Schema validation are
-not added. Existing handling of wire exponents beyond Decimal's range remains
+and `required` checks still run. Boolean draft-04 exclusive-bound modifiers, nested property
+traversal and general JSON Schema validation are not added. Existing handling of wire exponents beyond Decimal's range remains
 unchanged. Successful calls are not scanned for new schema violations.
 
 Source: [JSON Schema validation 2020-12, sections 6.2.2-6.2.5](https://json-schema.org/draft/2020-12/json-schema-validation),
@@ -677,3 +676,26 @@ the previous version promised these checks.
 
 Source: [JSON Schema validation 2020-12](https://json-schema.org/draft/2020-12/json-schema-validation),
 sections 6.3.1-6.3.2, 6.4.1-6.4.2 and 6.5.1-6.5.2, checked 2026-11-05.
+
+### Numeric multiple explanations
+
+After an observed invalid-params `tools/call` rejection, supported top-level
+argument properties also check numeric `multipleOf`. The divisor must be a
+finite number strictly greater than zero. Zero is a multiple of every valid
+divisor; negative instances use the same divisibility rule as positive ones.
+Booleans, nonnumeric values and invalid divisors supply no multiple evidence.
+
+Captured wire numbers use their exact decimal values, so wire `0.3` is a
+multiple of wire `0.1` without a binary-float remainder error. Direct Python
+float arguments instead use their represented binary values. Decimal
+coefficient arithmetic and modular exponentiation avoid materializing enormous
+powers of ten. Values or divisors with more than 4,300 coefficient digits are
+outside this check's supported work budget and supply no multiple explanation;
+other supported checks still run. Existing beyond-Decimal-range handling is
+unchanged. The new explanation omits numeric values; raw report evidence still
+uses only best-effort redaction.
+
+This is a supported-subset expansion after observed rejection, not full JSON
+Schema validation or a scan of successful calls. Source:
+[JSON Schema validation 2020-12, section 6.2.1](https://json-schema.org/draft/2020-12/json-schema-validation),
+checked 2026-11-05.
