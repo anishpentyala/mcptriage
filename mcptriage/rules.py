@@ -909,6 +909,21 @@ def rule_invalid_rpc_id(session: Session, strict: bool = False) -> List[Finding]
     ) for message in session.messages if message.kind == "invalid_id"]
 
 
+def rule_invalid_rpc_method(session: Session, strict: bool = False) -> List[Finding]:
+    return [Finding(
+        "INVALID_RPC_METHOD", HIGH,
+        "JSON-RPC message has a non-string method member",
+        _ev(message),
+        "JSON-RPC requires a present method member to be a string. A null, "
+        "boolean, numeric, array or object method cannot establish request or "
+        "notification traffic. It is not reinterpreted as a response even if "
+        "result/error members are present, and cannot supply catalog schemas.",
+        "Fix the emitting client/server or capture adapter to preserve a "
+        "string method name. This check does not validate supported method "
+        "names or every other request member.",
+    ) for message in session.messages if message.kind == "invalid_method"]
+
+
 def rule_unusable_params(session: Session, strict: bool = False) -> List[Finding]:
     return [Finding(
         "UNUSABLE_PARAMS", HIGH,
@@ -988,6 +1003,7 @@ ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
     rule_duplicate_json_key,
     rule_unusable_response,
     rule_invalid_rpc_id,
+    rule_invalid_rpc_method,
     rule_unusable_error_code,
     rule_unusable_tool_name,
     rule_unusable_params,
