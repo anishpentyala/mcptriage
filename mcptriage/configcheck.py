@@ -16,6 +16,7 @@ import shutil
 from typing import Any, Dict, List, Optional, Tuple
 
 from .rules import Finding, HIGH, LOW, MEDIUM
+from .transcript import _NonfiniteJSONConstant, _reject_constant
 
 _ENV_REF = re.compile(r"\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}")
 
@@ -46,7 +47,7 @@ def _servers_from(obj: Any) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
 def check_config_text(text: str, path: str = "<config>") -> List[Finding]:
     findings: List[Finding] = []
     try:
-        obj = json.loads(text, object_pairs_hook=_unique_config_object)
+        obj = json.loads(text, object_pairs_hook=_unique_config_object, parse_constant=_reject_constant)
     except json.JSONDecodeError as exc:
         return [Finding(
             "CFG_JSON_ERROR", HIGH,
@@ -56,6 +57,15 @@ def check_config_text(text: str, path: str = "<config>") -> List[Finding]:
             "never appears.",
             "Fix the JSON syntax at the reported position (common causes: trailing "
             "commas, unquoted backslashes in Windows paths).",
+        )]
+    except _NonfiniteJSONConstant:
+        return [Finding(
+            "CFG_NONFINITE_JSON_CONSTANT", HIGH,
+            "config contains a non-JSON numeric literal",
+            path,
+            "Bare NaN, Infinity and -Infinity are not JSON numbers. No server "
+            "entries were checked, and names and values are not echoed.",
+            "Fix the serializer or config to emit valid JSON values, then check again.",
         )]
     except _DuplicateConfigKey:
         return [Finding(

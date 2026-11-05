@@ -999,6 +999,20 @@ def rule_unusable_response(session: Session, strict: bool = False) -> List[Findi
        if message.kind == "response" and not message.usable_response()]
 
 
+def rule_nonfinite_json_constant(session: Session, strict: bool = False) -> List[Finding]:
+    return [Finding(
+        "NONFINITE_JSON_CONSTANT", HIGH,
+        "captured message contains a non-JSON numeric literal",
+        "line %d: [non-JSON numeric literal; content omitted]" % message.line_no,
+        "Bare NaN, Infinity and -Infinity are not JSON numbers. This line is "
+        "retained but excluded from pairing, startup and catalog evidence; "
+        "no nested substitute message is extracted. Quoted strings and "
+        "valid exponent-form JSON numbers are unaffected.",
+        "Fix the emitting serializer or capture adapter to emit JSON values "
+        "without nonfinite numeric literals, then recapture the exchange.",
+    ) for message in session.messages if message.kind == "nonfinite_json_constant"]
+
+
 def rule_duplicate_json_key(session: Session, strict: bool = False) -> List[Finding]:
     return [Finding(
         "DUPLICATE_JSON_KEY", HIGH,
@@ -1015,6 +1029,7 @@ def rule_duplicate_json_key(session: Session, strict: bool = False) -> List[Find
 
 ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
     rule_duplicate_json_key,
+    rule_nonfinite_json_constant,
     rule_unusable_response,
     rule_invalid_rpc_id,
     rule_invalid_rpc_method,

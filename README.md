@@ -623,3 +623,14 @@ pairing and tool catalogs, preventing an explicitly wrong-version reply from
 supplying a schema or an empty-tool explanation. Missing `jsonrpc` members
 keep the existing permissive capture behavior. This is not full JSON-RPC
 validation or automatic support for JSON-RPC 1.0.
+
+Bare `NaN`, `Infinity` and `-Infinity` literals are Python JSON extensions,
+not JSON numbers (RFC 8259 section 6). When decoding a transcript line scans
+one of these literals, the whole line is retained as
+`NONFINITE_JSON_CONSTANT` evidence, excluded from pairing and catalogs, and
+no nested protocol-shaped substitute is extracted from it; the diagnostic
+cites the line number without echoing line content. A literal in surrounding
+text that decoding never scans does not trigger the guard. Configs containing
+one return `CFG_NONFINITE_JSON_CONSTANT` without checking any server entries
+or echoing values. Quoted strings and valid exponent-form numbers retain
+existing behavior; this is not a complete JSON validator.
