@@ -197,8 +197,12 @@ claim about everything that exists.
   pages keep earlier pages only when their exact opaque cursor was advertised
   by the preceding accepted page before the continuation request. Unlinked,
   stale, or speculative page replies cannot supply argument schemas. Empty
-  string cursors remain valid; list-change notifications and a fresh first
-  page reset the chain. Failed or malformed listings do not prove an empty
+  string cursors remain valid; list-change notifications, an observed new
+  initialize request, and a fresh first page reset the chain. An initialization
+  attempt also invalidates old schema evidence, including after an error or
+  without a captured reply; only a fresh listing can supply schemas afterward.
+  This is conservative handling of reconnects in a combined capture, not
+  automatic transport/session demultiplexing. Failed or malformed listings do not prove an empty
   catalog or consume an advertised cursor. Earlier calls retain their earlier observed schema evidence. This is
   not a complete pagination, cache, authorization or transport-session model.
 - The argument validator checks the top level of `inputSchema` (required,
