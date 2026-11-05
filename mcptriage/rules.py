@@ -208,6 +208,29 @@ def _numeric_bound_problems(spec: dict, value: Any, name: str) -> List[str]:
     return problems
 
 
+def _size_problems(spec: dict, value: Any, name: str) -> List[str]:
+    """Supported instance-size keywords, without coercion or content echoes."""
+    if isinstance(value, str):
+        keywords = ("minLength", "maxLength")
+    elif isinstance(value, list):
+        keywords = ("minItems", "maxItems")
+    elif isinstance(value, dict):
+        keywords = ("minProperties", "maxProperties")
+    else:
+        return []
+    problems = []
+    for keyword in keywords:
+        bound = _exact_bound_number(spec.get(keyword))
+        if bound is None or bound < 0 or bound != bound.to_integral_value():
+            continue  # malformed bounds are not evidence of a violation
+        size = len(value)
+        if ((keyword.startswith("min") and size < bound)
+                or (keyword.startswith("max") and size > bound)):
+            problems.append("argument '%s' violates %s (content and bound omitted)"
+                            % (name, keyword))
+    return problems
+
+
 def _enum_summary(enum: list) -> str:
     try:
         summary = redact(str(enum))
@@ -271,6 +294,7 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
                    type(value).__name__)
             )
         problems.extend(_numeric_bound_problems(spec, value, name))
+        problems.extend(_size_problems(spec, value, name))
         enum = spec.get("enum")
         if isinstance(enum, list) and not any(_json_equal(value, item) for item in enum):
             problems.append("argument '%s' is not one of %s" % (name, _enum_summary(enum)))
