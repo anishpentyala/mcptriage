@@ -563,3 +563,26 @@ https://modelcontextprotocol.io/specification/draft/server/tools .
 The check applies that identity assumption across accepted pages rather than
 letting page order silently select a schema. The separate within-response
 `DUPLICATE_TOOL_NAMES` finding is unchanged.
+
+### Numeric schema evidence from captured JSON
+
+For the supported `enum` and `integer` argument checks, decimal/exponent JSON
+numbers retain their exact wire value rather than borrowing a rounded binary
+float. This prevents `1.00000000000000001` from matching enum `1` or satisfying
+`integer`, and keeps `9007199254740993.0` equal to enum `9007199254740993`.
+JSON Schema defines numbers as arbitrary-precision base-10 values and numeric
+equality by mathematical value:
+https://json-schema.org/draft/2020-12/json-schema-core (sections 4.2.1 and 4.2.2),
+https://json-schema.org/understanding-json-schema/reference/numeric
+(rechecked 2026-11-05).
+
+The parser uses float-compatible values carrying exact decimal metadata for
+these checks. This is not a general exact-arithmetic public API: ordinary float
+arithmetic or re-encoding parsed objects with `json.dumps` can still round.
+Direct API callers passing ordinary Python floats cannot recover precision
+already lost before parsing. Exponents outside Python Decimal's supported range
+suppress schema-specific explanations for that schema/call rather than making
+up a mismatch. The observed server rejection is still reported. Request-ID
+size limits, boolean/number distinctions and unsupported-schema limits remain.
+Integer-valued error codes also use the exact wire value, so fractional codes
+rounded to an integer cannot borrow that integer's protocol meaning.
