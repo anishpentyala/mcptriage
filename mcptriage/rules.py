@@ -242,7 +242,7 @@ def _multiple_of_problem(spec: dict, value: Any, name: str) -> List[str]:
     return ["argument '%s' violates multipleOf (values omitted)" % name]
 
 
-def _size_problems(spec: dict, value: Any, name: str) -> List[str]:
+def _size_problems(spec: dict, value: Any, name: Optional[str]) -> List[str]:
     """Supported instance-size keywords, without coercion or content echoes."""
     if isinstance(value, str):
         keywords = ("minLength", "maxLength")
@@ -260,8 +260,9 @@ def _size_problems(spec: dict, value: Any, name: str) -> List[str]:
         size = len(value)
         if ((keyword.startswith("min") and size < bound)
                 or (keyword.startswith("max") and size > bound)):
-            problems.append("argument '%s' violates %s (content and bound omitted)"
-                            % (name, keyword))
+            subject = "arguments object" if name is None else "argument '%s'" % name
+            problems.append("%s violates %s (content and bound omitted)"
+                            % (subject, keyword))
     return problems
 
 
@@ -308,6 +309,7 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
             pending.extend(value.values())
         elif isinstance(value, list):
             pending.extend(value)
+    problems.extend(_size_problems(schema, args, None))
     raw_props = schema.get("properties", {})
     props = raw_props if isinstance(raw_props, dict) else {}
     # additionalProperties excludes names matched by patternProperties too.
