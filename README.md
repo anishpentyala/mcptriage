@@ -721,3 +721,22 @@ that the previous version promised uniqueness validation.
 
 Source: [JSON Schema validation 2020-12, section 6.4.3](https://json-schema.org/draft/2020-12/json-schema-validation),
 checked 2026-11-05.
+
+### Constant-value explanations
+
+After an observed invalid-params `tools/call` rejection, supported top-level
+argument properties also check an explicitly present `const`, including
+`const: null`. Equality uses the same iterative JSON comparison as `enum`:
+booleans do not alias numbers, numeric `1` and `1.0` match, objects ignore
+key order and arrays preserve order. Captured numbers retain their exact wire
+decimal identity. Deep arrays and objects do not require recursive comparison.
+
+An absent property is not invented as a null-valued argument; `required` still
+controls missing-property explanations. Other supported keyword checks continue.
+New explanation text omits both values, while existing raw evidence still uses
+only best-effort redaction. Successful calls are not scanned. This is one more
+supported keyword, not full JSON Schema validation or a claim that the old
+version promised constant-value validation.
+
+Source: [JSON Schema validation 2020-12, section 6.1.3](https://json-schema.org/draft/2020-12/json-schema-validation),
+checked 2026-11-05.

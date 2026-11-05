@@ -347,6 +347,8 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
         problems.extend(_size_problems(spec, value, name))
         problems.extend(_multiple_of_problem(spec, value, name))
         problems.extend(_unique_items_problem(spec, value, name))
+        if "const" in spec and not _json_equal(value, spec["const"]):
+            problems.append("argument '%s' differs from const (values omitted)" % name)
         enum = spec.get("enum")
         if isinstance(enum, list) and not any(_json_equal(value, item) for item in enum):
             problems.append("argument '%s' is not one of %s" % (name, _enum_summary(enum)))
