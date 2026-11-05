@@ -634,3 +634,25 @@ text that decoding never scans does not trigger the guard. Configs containing
 one return `CFG_NONFINITE_JSON_CONSTANT` without checking any server entries
 or echoing values. Quoted strings and valid exponent-form numbers retain
 existing behavior; this is not a complete JSON validator.
+
+### Numeric bound explanations
+
+After an observed `tools/call` invalid-params rejection, supported top-level
+argument properties now check `minimum`, `maximum`, `exclusiveMinimum` and
+`exclusiveMaximum` with numeric bounds. Inclusive bounds allow equality;
+exclusive bounds reject it. Wire numbers use their exact decimal values, not
+rounded binary floats, including very large or small exponents. Direct Python
+float inputs use their represented binary value. The added explanation omits
+both instance and bound values; existing report evidence still receives only
+best-effort redaction, not a new privacy guarantee.
+
+Missing, nonnumeric, boolean and nonfinite bounds supply no bound evidence.
+Nonnumeric arguments supply no bound evidence either; supported `type`, `enum`
+and `required` checks still run. Boolean draft-04 exclusive-bound modifiers,
+`multipleOf`, nested property traversal and general JSON Schema validation are
+not added. Existing handling of wire exponents beyond Decimal's range remains
+unchanged. Successful calls are not scanned for new schema violations.
+
+Source: [JSON Schema validation 2020-12, sections 6.2.2-6.2.5](https://json-schema.org/draft/2020-12/json-schema-validation),
+checked 2026-11-05. This is a supported-subset expansion, not a claim that the
+previous version promised numeric-bound validation.
