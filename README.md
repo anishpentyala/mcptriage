@@ -109,6 +109,7 @@ Transcript rules (input: captured JSON-RPC exchange):
 | TOOL_CALL_FAILED | medium | call returns `isError: true` (server-side, not protocol) |
 | MISSING_INITIALIZED | low | no `notifications/initialized` after initialize |
 | UNUSABLE_TOOLS_CATALOG | high | malformed tools/list result, tools array or entry/name shape |
+| DUPLICATE_CATALOG_PAGE_NAMES | medium | accepted continuation repeats names from earlier linked catalog pages |
 | SCHEMA_ISSUES | low | missing/invalid `inputSchema` in listed tools |
 | ORPHAN_RESPONSES | low | responses with ids no request claims (broken framing) |
 | INVALID_RPC_ID | high | null, boolean, fractional, array or object IDs that cannot pair safely |
@@ -532,3 +533,27 @@ those characters without losing the catalog or inventing a missing response.
 Escaped and literal forms of the same Unicode string have the same protocol
 meaning. This does not decode pretty-printed multi-line JSON or validate raw
 transport framing.
+
+### Overlapping catalog pages
+
+A successful continuation linked to the preceding advertised cursor belongs to
+one observed listing, not a fresh catalog. If it repeats a name from an earlier
+accepted page, `DUPLICATE_CATALOG_PAGE_NAMES` points to the continuation response.
+Argument explanations omit all definitions for that name for the rest of the
+listing, even if their schemas look equal or a third page repeats it. Unique
+names stay usable; earlier calls keep the evidence available when they ran.
+A new first page or catalog invalidation resets this ambiguity.
+
+Separate first-page refreshes, unlinked/stale/speculative continuations and
+case-distinct names are not cross-page duplicates. Error replies, unusable RPC
+responses and results without a tools array do not consume the cursor or
+establish collision evidence. Other malformed entries retain existing handling. This is conservative
+handling of one captured server's list, not proof of which definition a live
+client selected, a multi-server naming model or full pagination validation.
+
+The MCP tools draft says names "SHOULD be unique within a server" and that
+`tools/list` supports pagination (checked November 4, 2026):
+https://modelcontextprotocol.io/specification/draft/server/tools .
+The check applies that identity assumption across accepted pages rather than
+letting page order silently select a schema. The separate within-response
+`DUPLICATE_TOOL_NAMES` finding is unchanged.
