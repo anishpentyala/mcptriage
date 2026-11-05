@@ -586,3 +586,19 @@ up a mismatch. The observed server rejection is still reported. Request-ID
 size limits, boolean/number distinctions and unsupported-schema limits remain.
 Integer-valued error codes also use the exact wire value, so fractional codes
 rounded to an integer cannot borrow that integer's protocol meaning.
+
+### Conservative additional-property explanations
+
+The top-level argument checker reports an `additionalProperties: false`
+violation only when `properties` is absent or an object and
+`patternProperties` is absent or an empty object. JSON Schema also permits
+names matched by `patternProperties`, so ignoring a nonempty pattern map
+cannot establish that a name is additional. Malformed maps likewise provide
+no such evidence. The checker does not execute captured regular expressions:
+dialect differences and expensive patterns remain outside this small validator.
+
+This suppresses only the uncertain extra-name explanation. Independent explicit
+property type/enum/boolean-schema checks and valid `required` checks still run;
+the observed server rejection remains a finding. Nonmatching names and false
+pattern subschemas can therefore remain unexplained. This is conservative
+partial diagnosis, not a claim the arguments satisfy the full schema.

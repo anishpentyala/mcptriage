@@ -202,8 +202,15 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
             pending.extend(value.values())
         elif isinstance(value, list):
             pending.extend(value)
-    props = schema.get("properties")
-    props = props if isinstance(props, dict) else {}
+    raw_props = schema.get("properties", {})
+    props = raw_props if isinstance(raw_props, dict) else {}
+    # additionalProperties excludes names matched by patternProperties too.
+    # We do not execute captured regexes (dialect/resource limits). A nonempty
+    # or malformed pattern map makes that narrow exclusion claim unproven.
+    # Do not discard independent explicit-property or required evidence.
+    patterns = schema.get("patternProperties", {})
+    can_exclude_extra = (isinstance(raw_props, dict)
+                         and isinstance(patterns, dict) and not patterns)
     required = schema.get("required")
     required = required if _valid_required(required) else []
     for name in required:
@@ -217,7 +224,8 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
             problems.append("argument '%s' is not allowed by the schema" % name)
             continue
         if not isinstance(spec, dict):
-            if name not in props and schema.get("additionalProperties") is False:
+            if (name not in props and can_exclude_extra
+                    and schema.get("additionalProperties") is False):
                 problems.append(
                     "unexpected argument '%s' (schema sets additionalProperties: false)" % name
                 )
