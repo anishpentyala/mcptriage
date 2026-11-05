@@ -762,3 +762,26 @@ this new check. No new explanation is attached to successful calls or based on
 a tool list captured only after the call. Semantics follow JSON Schema 2020-12
 Validation section 6.5.4, checked 2026-11-05:
 https://json-schema.org/draft/2020-12/json-schema-validation
+
+### Property counts of the whole argument object
+
+Top-level `minProperties` and `maxProperties` can now explain an observed
+invalid-params tool rejection using the earlier tool's input schema. They count
+all submitted member names, including names not declared in `properties` and
+members with falsey/null values. They do not count required declarations or
+nested descendants. Equality with the bound is allowed.
+
+Bounds must be nonnegative integral JSON numbers, including integral decimal
+representations; malformed, boolean, fractional and negative bounds add no
+explanation. Exact numeric comparisons do not round a large bound through a
+float. The explanation labels the whole `arguments object` and omits content
+and bound values; raw evidence excerpts retain existing best-effort redaction.
+Existing property-level size checks stay unchanged and can report independent
+violations. Missing fields still need `required`, and unknown-name exclusion
+still needs `additionalProperties: false` under its existing limits.
+
+This is a diagnostic subset expansion, not a complete validator or a claim the
+previous version supported root property counts. Successful calls and schemas
+seen only later do not get this explanation. JSON Schema 2020-12 Validation
+sections 6.5.1-6.5.2, checked 2026-11-05:
+https://json-schema.org/draft/2020-12/json-schema-validation
