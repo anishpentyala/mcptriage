@@ -740,3 +740,25 @@ version promised constant-value validation.
 
 Source: [JSON Schema validation 2020-12, section 6.1.3](https://json-schema.org/draft/2020-12/json-schema-validation),
 checked 2026-11-05.
+
+### Dependent required argument names
+
+After an observed invalid-params tool rejection, an earlier captured tool schema
+can now explain top-level `dependentRequired` omissions. A present trigger name
+requires every listed name, even when its value is null, false, zero, empty text
+or an empty container. Presence does not mean truthiness. Dependencies are
+one-way; missing names do not recursively become present triggers.
+
+The keyword must be an object of unique string arrays. A malformed member makes
+the whole keyword unusable as evidence, while independent supported constraints
+still apply. Empty maps/arrays add no requirements; a self dependency is already
+satisfied by its trigger. Names need not appear in `properties`. The explanation
+includes argument names, not their captured values; ordinary evidence excerpts
+still use the existing best-effort redaction and may contain non-secret data.
+
+This expands the supported diagnostic subset, not complete schema validation:
+nested dependencies, legacy `dependencies` and `dependentSchemas` remain outside
+this new check. No new explanation is attached to successful calls or based on
+a tool list captured only after the call. Semantics follow JSON Schema 2020-12
+Validation section 6.5.4, checked 2026-11-05:
+https://json-schema.org/draft/2020-12/json-schema-validation
