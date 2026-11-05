@@ -322,6 +322,20 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
     for name in required:
         if name not in args:
             problems.append("missing required argument '%s'" % name)
+    dependencies = schema.get("dependentRequired", {})
+    # Use the whole keyword only when well-formed. A malformed sibling must
+    # not turn a partial map into apparently authoritative schema evidence.
+    if (isinstance(dependencies, dict)
+            and all(isinstance(key, str) and _valid_required(value)
+                    for key, value in dependencies.items())):
+        for trigger, names in dependencies.items():
+            if trigger in args:
+                for name in names:
+                    if name not in args:
+                        problems.append(
+                            "argument '%s' requires argument '%s' via dependentRequired"
+                            % (trigger, name)
+                        )
     for name, value in args.items():
         spec = props.get(name)
         if spec is True:
