@@ -12,7 +12,7 @@ from bisect import bisect_left
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
-from .transcript import Message, Session
+from .transcript import Message, Session, WireNumber
 
 HIGH = "high"
 MEDIUM = "medium"
@@ -37,8 +37,14 @@ def _clip(text: str, limit: int = 160) -> str:
 _401_RE = re.compile(r"\b401\b")
 
 
+def _integer_number(value: Any) -> bool:
+    if isinstance(value, WireNumber):
+        return value.exact.is_finite() and value.exact == value.exact.to_integral_value()
+    return type(value) is int or (type(value) is float and value.is_integer())
+
+
 def _usable_error_code(value: Any) -> bool:
-    return (type(value) is int or (type(value) is float and value.is_integer()))
+    return _integer_number(value)
 
 
 def _looks_auth(err) -> bool:
@@ -48,11 +54,13 @@ def _looks_auth(err) -> bool:
     is a value the server embedded in the error code, message, or data, not an
     HTTP status line.
     """
-    if err.get("code") == 401:
+    if _json_equal(err.get("code"), 401):
         return True
     # A decoder may accept deeper values than json.dumps can encode. Walk
     # JSON leaves and member names without recursive calls or re-encoding.
-    pending = [err]
+    pending = [dict(err)]
+    if isinstance(err.get("code"), (int, float)):
+        pending[0].pop("code", None)
     while pending:
         value = pending.pop()
         if isinstance(value, dict):
@@ -124,7 +132,7 @@ def _type_ok(declared: Any, value: Any) -> bool:
     if declared == "number":
         return isinstance(value, (int, float)) and not isinstance(value, bool)
     if declared == "integer":
-        return type(value) is int or (type(value) is float and value.is_integer())
+        return _integer_number(value)
     if declared == "boolean":
         return isinstance(value, bool)
     if declared == "array":
@@ -148,6 +156,8 @@ def _json_equal(left: Any, right: Any) -> bool:
             if type(left) is not type(right) or left != right:
                 return False
         elif isinstance(left, (int, float)) and isinstance(right, (int, float)):
+            left = left.exact if isinstance(left, WireNumber) else left
+            right = right.exact if isinstance(right, WireNumber) else right
             if left != right:
                 return False
         elif type(left) is not type(right):
@@ -180,6 +190,18 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
     problems: List[str] = []
     if not isinstance(schema, dict) or not isinstance(args, dict):
         return problems
+    # Decimal's exponent representation is bounded. Do not invent a schema
+    # violation when exact wire numbers exceed that range. This only affects
+    # schema explanations, not the observed server rejection itself.
+    pending = [schema, args]
+    while pending:
+        value = pending.pop()
+        if isinstance(value, WireNumber) and not value.exact.is_finite():
+            return problems
+        if isinstance(value, dict):
+            pending.extend(value.values())
+        elif isinstance(value, list):
+            pending.extend(value)
     props = schema.get("properties")
     props = props if isinstance(props, dict) else {}
     required = schema.get("required")
@@ -391,7 +413,7 @@ def rule_tools_list_error(session: Session, strict: bool = False) -> List[Findin
             code, ("tools/list returned JSON-RPC error %s" % code,
                    "Read the server log for this request id."))
         extra = ""
-        if code == -32022 and isinstance(err.get("data"), dict):
+        if _json_equal(code, -32022) and isinstance(err.get("data"), dict):
             supported = err["data"].get("supported")
             if supported:
                 try:
@@ -751,7 +773,7 @@ def rule_tool_call_problems(session: Session, strict: bool = False) -> List[Find
             continue
         args = params.get("arguments")
         err = resp.error()
-        if err is not None and _usable_error_code(err.get("code")) and err.get("code") == -32602:
+        if err is not None and _usable_error_code(err.get("code")) and _json_equal(err.get("code"), -32602):
             detail = ""
             schema = None
             if isinstance(args, dict):
