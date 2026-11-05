@@ -265,6 +265,22 @@ def _size_problems(spec: dict, value: Any, name: str) -> List[str]:
     return problems
 
 
+def _unique_items_problem(spec: dict, value: Any, name: str) -> List[str]:
+    if spec.get("uniqueItems") is not True or not isinstance(value, list):
+        return []
+    # Bound equality attempts. This is diagnostic evidence, not a complete
+    # validator: exhaustion must never become a uniqueness claim.
+    remaining = 4096
+    for right in range(1, len(value)):
+        for left in range(right):
+            if not remaining:
+                return []
+            remaining -= 1
+            if _json_equal(value[left], value[right]):
+                return ["argument '%s' violates uniqueItems (duplicate values omitted)" % name]
+    return []
+
+
 def _enum_summary(enum: list) -> str:
     try:
         summary = redact(str(enum))
@@ -330,6 +346,7 @@ def validate_arguments(schema: Dict[str, Any], args: Any) -> List[str]:
         problems.extend(_numeric_bound_problems(spec, value, name))
         problems.extend(_size_problems(spec, value, name))
         problems.extend(_multiple_of_problem(spec, value, name))
+        problems.extend(_unique_items_problem(spec, value, name))
         enum = spec.get("enum")
         if isinstance(enum, list) and not any(_json_equal(value, item) for item in enum):
             problems.append("argument '%s' is not one of %s" % (name, _enum_summary(enum)))
