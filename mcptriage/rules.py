@@ -643,6 +643,21 @@ def rule_duplicate_tool_names(session: Session, strict: bool = False) -> List[Fi
     return findings
 
 
+def rule_duplicate_catalog_pages(session: Session, strict: bool = False) -> List[Finding]:
+    return [Finding(
+        "DUPLICATE_CATALOG_PAGE_NAMES", MEDIUM,
+        "linked tools/list page repeats %d earlier tool name(s)" % count,
+        _ev(response),
+        "An accepted continuation page repeats names already observed in this "
+        "catalog's cursor chain. Page order cannot choose a definition; schemas "
+        "for those names are omitted until a fresh catalog starts. Other names "
+        "and earlier call-time evidence remain usable.",
+        "Check the server or capture adapter for overlapping pages. Return "
+        "distinct names across one listing, or refresh the list after it changes. "
+        "This capture does not prove which definition a live client used.",
+    ) for response, count in session._catalog_state()[1]]
+
+
 def rule_schema_issues(session: Session, strict: bool = False) -> List[Finding]:
     problems = []
     for req in session.requests("tools/list"):
@@ -960,6 +975,7 @@ ALL_RULES: List[Callable[[Session, bool], List[Finding]]] = [
     rule_unusable_cursor,
     rule_unusable_tools_catalog,
     rule_duplicate_tool_names,
+    rule_duplicate_catalog_pages,
     rule_schema_issues,
     rule_orphan_responses,
     rule_era_mix,
