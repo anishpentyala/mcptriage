@@ -181,11 +181,16 @@ class Session:
                 requests.setdefault((type(m.msg_id), m.msg_id), []).append(m)
         consumed = set()
         last_list_change_line = 0
+        # Only the next cursor from an accepted page can extend this catalog.
+        # Retain its advertisement line: a speculative earlier request cannot
+        # borrow a cursor that appears later in the capture.
+        next_page = None
         for m in visible:
             if m.kind == _NOTIFICATION and m.method == "notifications/tools/list_changed":
                 # The capture gives no basis for assuming old definitions
                 # survived a list change. Require fresh catalog evidence.
                 tools.clear()
+                next_page = None
                 last_list_change_line = m.line_no
             if m.kind != _RESPONSE:
                 continue
@@ -202,10 +207,20 @@ class Session:
             result = m.result()
             if isinstance(result, dict) and isinstance(result.get("tools"), list):
                 params = matches[0].obj.get("params", {})
-                if isinstance(params, dict) and "cursor" not in params:
+                if not isinstance(params, dict):
+                    continue
+                if "cursor" in params:
+                    cursor = params["cursor"]
+                    if (not isinstance(cursor, str) or next_page is None
+                            or cursor != next_page[0]
+                            or matches[0].line_no <= next_page[1]):
+                        continue
+                else:
                     # A successful first page starts a new observed listing.
                     # Keep linked pagination pages, not tools omitted on refresh.
                     tools.clear()
+                cursor = result.get("nextCursor")
+                next_page = (cursor, m.line_no) if isinstance(cursor, str) else None
                 seen_names = set()
                 duplicate_names = set()
                 for tool in result["tools"]:

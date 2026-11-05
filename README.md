@@ -194,8 +194,12 @@ claim about everything that exists.
   not rebuild a catalog they do not use.
 - A successfully observed first page of `tools/list` starts a fresh catalog for
   later argument checks, including when the new tools list is empty. Continuation
-  pages keep earlier pages; failed or malformed listings do not prove an empty
-  catalog. Earlier calls retain their earlier observed schema evidence. This is
+  pages keep earlier pages only when their exact opaque cursor was advertised
+  by the preceding accepted page before the continuation request. Unlinked,
+  stale, or speculative page replies cannot supply argument schemas. Empty
+  string cursors remain valid; list-change notifications and a fresh first
+  page reset the chain. Failed or malformed listings do not prove an empty
+  catalog or consume an advertised cursor. Earlier calls retain their earlier observed schema evidence. This is
   not a complete pagination, cache, authorization or transport-session model.
 - The argument validator checks the top level of `inputSchema` (required,
   primitive types, enum, additionalProperties, boolean subschemas). Unknown or
