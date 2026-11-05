@@ -186,9 +186,11 @@ class Session:
         # borrow a cursor that appears later in the capture.
         next_page = None
         for m in visible:
-            if m.kind == _NOTIFICATION and m.method == "notifications/tools/list_changed":
-                # The capture gives no basis for assuming old definitions
-                # survived a list change. Require fresh catalog evidence.
+            if ((m.kind == _NOTIFICATION and m.method == "notifications/tools/list_changed")
+                    or (m.kind == _REQUEST and m.method == "initialize")):
+                # Neither a changed list nor a new initialization attempt
+                # establishes that old definitions/cursors are still current.
+                # Require a fresh listing, even if initialization fails.
                 tools.clear()
                 next_page = None
                 last_list_change_line = m.line_no
