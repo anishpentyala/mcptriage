@@ -616,3 +616,10 @@ String method names, including unknown or empty names, retain the existing
 classification. This is a type check, not full request validation or a claim
 that a method name exists. A malformed method cannot supply an authoritative
 tool schema even if a nested value resembles protocol traffic.
+
+Explicit `jsonrpc` members must be the string `"2.0"`. Other values are
+retained as `INVALID_RPC_VERSION` evidence and excluded from request/response
+pairing and tool catalogs, preventing an explicitly wrong-version reply from
+supplying a schema or an empty-tool explanation. Missing `jsonrpc` members
+keep the existing permissive capture behavior. This is not full JSON-RPC
+validation or automatic support for JSON-RPC 1.0.
