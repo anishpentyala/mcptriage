@@ -445,7 +445,13 @@ Diagnosis builds one chronological response-ownership index for that pass and
 shares it across rules. The index is not kept on the mutable caller session,
 so a later diagnosis sees appended or removed messages. This reduces repeated
 pairing scans for large tool-list captures; it does not make every rule linear
-or change the documented uncertainty of untagged request-ID reuse.
+or change the documented uncertainty of untagged request-ID reuse. Catalog
+snapshots for failed-call argument checks use a per-diagnosis projection of
+catalog-relevant traffic: tools/list IDs (including other methods and replies
+reusing those IDs), initialization attempts, and list-change notifications.
+Repeated snapshots do not rescan unrelated call traffic. The projection keeps
+references to existing messages, not copies of their payloads; it does not make
+catalog-heavy captures linear or remove catalog/schema validation work.
 
 Authentication-on-list heuristics inspect the paired JSON-RPC error object,
 not outer request IDs, unrelated response metadata or log prefixes. Existing
