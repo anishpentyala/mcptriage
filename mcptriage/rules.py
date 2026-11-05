@@ -983,8 +983,8 @@ class _DiagnosisSession(Session):
         self._pairs = session.response_pairs()
         # Only traffic with an ID ever used for tools/list can change catalog
         # ownership. Include unrelated methods reusing those IDs and every
-        # response, not just successful list replies. Notifications invalidate
-        # a catalog without an ID. The index is local to this diagnosis pass.
+        # response, not just successful list replies. List-change notifications
+        # and initialize attempts invalidate prior catalog/cursor evidence. The index is local to this diagnosis pass.
         list_ids = {(type(m.msg_id), m.msg_id)
                     for m in self.messages
                     if m.kind == "request" and m.method == "tools/list"}
@@ -993,7 +993,8 @@ class _DiagnosisSession(Session):
             if ((m.kind in ("request", "response")
                  and (type(m.msg_id), m.msg_id) in list_ids)
                 or (m.kind == "notification"
-                    and m.method == "notifications/tools/list_changed")))
+                    and m.method == "notifications/tools/list_changed")
+                or (m.kind == "request" and m.method == "initialize")))
         self._catalog_epoch = None
         self._catalog_snapshot = None
 
