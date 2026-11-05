@@ -73,6 +73,10 @@ def _classify(obj: Any):
     if not isinstance(obj, dict):
         return _UNPARSED, None, None
     method = obj.get("method")
+    if "method" in obj and not isinstance(method, str):
+        # A present null method is not an absent method/response envelope.
+        # Retain malformed evidence without pairing or catalog projection.
+        return "invalid_method", None, None
     identifier = obj.get("id")
     if isinstance(identifier, WireNumber):
         identifier = identifier.exact
@@ -134,7 +138,7 @@ class Session:
 
     @property
     def parsed(self) -> List[Message]:
-        return [m for m in self.messages if m.kind not in (_UNPARSED, _INVALID_ID, "duplicate_json_key")]
+        return [m for m in self.messages if m.kind not in (_UNPARSED, _INVALID_ID, "duplicate_json_key", "invalid_method")]
 
     @property
     def unparsed(self) -> List[Message]:

@@ -602,3 +602,17 @@ property type/enum/boolean-schema checks and valid `required` checks still run;
 the observed server rejection remains a finding. Nonmatching names and false
 pattern subschemas can therefore remain unexplained. This is conservative
 partial diagnosis, not a claim the arguments satisfy the full schema.
+
+### Malformed method evidence
+
+A present JSON-RPC `method` must be a string. Null, boolean, numeric, array or
+object methods produce `INVALID_RPC_METHOD` and remain in the raw message
+record, but are excluded from requests, notifications, response pairing and
+catalog projection. In particular, `method: null` plus `result` is not treated
+as a response merely because the method value is falsey. This diagnostic takes
+precedence over identifier checks on the same unusable message.
+
+String method names, including unknown or empty names, retain the existing
+classification. This is a type check, not full request validation or a claim
+that a method name exists. A malformed method cannot supply an authoritative
+tool schema even if a nested value resembles protocol traffic.
