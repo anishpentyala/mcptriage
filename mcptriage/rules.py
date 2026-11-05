@@ -1004,13 +1004,15 @@ class _DiagnosisSession(Session):
         list_ids = {(type(m.msg_id), m.msg_id)
                     for m in self.messages
                     if m.kind == "request" and m.method == "tools/list"}
-        self._catalog_events = sorted(
-            m.line_no for m in self.messages
+        catalog_messages = [
+            m for m in self.messages
             if ((m.kind in ("request", "response")
                  and (type(m.msg_id), m.msg_id) in list_ids)
                 or (m.kind == "notification"
                     and m.method == "notifications/tools/list_changed")
-                or (m.kind == "request" and m.method == "initialize")))
+                or (m.kind == "request" and m.method == "initialize"))]
+        self._catalog_session = Session(messages=catalog_messages)
+        self._catalog_events = sorted(m.line_no for m in catalog_messages)
         self._catalog_epoch = None
         self._catalog_snapshot = None
 
@@ -1020,7 +1022,7 @@ class _DiagnosisSession(Session):
         epoch = (len(self._catalog_events) if before_line is None
                  else bisect_left(self._catalog_events, before_line))
         if epoch != self._catalog_epoch:
-            self._catalog_snapshot = super().tools_by_name(before_line=before_line)
+            self._catalog_snapshot = self._catalog_session.tools_by_name(before_line=before_line)
             self._catalog_epoch = epoch
         return self._catalog_snapshot
 
