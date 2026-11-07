@@ -785,3 +785,15 @@ previous version supported root property counts. Successful calls and schemas
 seen only later do not get this explanation. JSON Schema 2020-12 Validation
 sections 6.5.1-6.5.2, checked 2026-11-05:
 https://json-schema.org/draft/2020-12/json-schema-validation
+
+
+### Config file encoding
+
+Config files must decode as UTF-8 without replacing invalid bytes. An invalid
+byte sequence produces `CFG_UTF8_ERROR` (high severity), and no server entries
+are checked. Both `check-config` and `diagnose --config` report this finding in
+text and JSON output and exit 1 unless `--exit-zero` is explicitly used. The
+config contents are not included in this diagnostic. Valid Unicode text,
+including a literal U+FFFD replacement character already present in a valid
+UTF-8 file, is not treated as a decoding failure. This does not add endpoint
+validation or change the text API's responsibility for its already-decoded input.
