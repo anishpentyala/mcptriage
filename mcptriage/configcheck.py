@@ -237,5 +237,18 @@ def _check_command(name: str, command: str, path: str) -> List[Finding]:
 
 
 def check_config_file(path: str) -> List[Finding]:
-    with open(path, "r", encoding="utf-8", errors="replace") as fh:
-        return check_config_text(fh.read(), path)
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            text = fh.read()
+    except UnicodeDecodeError:
+        return [Finding(
+            "CFG_UTF8_ERROR", HIGH,
+            "config file is not valid UTF-8",
+            path,
+            "The file cannot be decoded as UTF-8. Replacing invalid bytes could "
+            "change server names, commands or endpoints, so no server entries "
+            "were checked. File contents are not echoed.",
+            "Save the intended config as UTF-8 without lossy replacement, "
+            "then run the check again.",
+        )]
+    return check_config_text(text, path)
