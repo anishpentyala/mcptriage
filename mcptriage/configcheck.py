@@ -10,6 +10,7 @@ depth on transcript diagnosis.
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import shutil
@@ -118,11 +119,12 @@ def check_config_text(text: str, path: str = "<config>") -> List[Finding]:
                 "Give the entry a 'command' (stdio) or 'url' (remote) plus its fields.",
             ))
             continue
-        findings.extend(_check_server(name, spec, path, base_dir))
+        findings.extend(_check_server(name, spec, path, base_dir, config_format=key))
     return findings
 
 
-def _check_server(name: str, spec: Dict[str, Any], path: str, base_dir: str) -> List[Finding]:
+def _check_server(name: str, spec: Dict[str, Any], path: str, base_dir: str,
+                  config_format: str = "mcpServers") -> List[Finding]:
     findings: List[Finding] = []
     # Validate field shapes independently of truthiness. Never echo malformed
     # values, which may contain credentials, or use them as endpoint evidence.
@@ -133,16 +135,27 @@ def _check_server(name: str, spec: Dict[str, Any], path: str, base_dir: str) -> 
     if "args" in spec and (not isinstance(spec["args"], list)
                            or not all(isinstance(arg, str) for arg in spec["args"])):
         bad_fields.append("args")
+    # VS Code's top-level servers format explicitly supports numeric values
+    # and null environment values. Do not apply this wider contract merely
+    # because an ignored servers map is also present. Portable mcpServers
+    # keeps the existing string-only check. Booleans are not JSON numbers.
+    def valid_env_value(value):
+        return (isinstance(value, str) or (config_format == "servers" and
+                (value is None or type(value) is int
+                 or (type(value) is float and math.isfinite(value)))))
+
     if "env" in spec and (not isinstance(spec["env"], dict)
-                          or not all(isinstance(value, str) for value in spec["env"].values())):
+                          or not all(valid_env_value(value) for value in spec["env"].values())):
         bad_fields.append("env")
+    env_contract = ("strings, finite numbers or null" if config_format == "servers"
+                    else "string values")
     for field in bad_fields:
         findings.append(Finding(
             "CFG_SHAPE", HIGH if field in ("command", "url") else MEDIUM,
             "server '%s' %s has an unusable field type" % (name, field),
             "%s: '%s' field '%s'" % (path, name, field),
             "command, url, envFile and type must be strings; args must contain only "
-            "strings; env must map variable names to string values. "
+            "strings; env must map variable names to " + env_contract + ". "
             "The malformed value is not used as launch or endpoint evidence.",
             "Check the client's config format and fix the field's JSON type "
             "without converting secret values into diagnostic text.",
