@@ -62,11 +62,18 @@ def main(argv: Optional[List[str]] = None) -> int:
             if args.logfile == "-":
                 from .transcript import parse_text
 
-                session = parse_text(sys.stdin.read())
+                # Read original bytes when available: a replacement-mode text
+                # wrapper can collapse distinct invalid wire IDs before parsing.
+                binary = getattr(sys.stdin, "buffer", None)
+                text = (binary.read().decode("utf-8") if binary is not None
+                        else sys.stdin.read())
+                session = parse_text(text)
                 source = "<stdin>"
             else:
                 session = parse_file(args.logfile)
                 source = args.logfile
+        except UnicodeError:
+            parser.error("cannot read transcript input as UTF-8; no diagnosis published")
         except OSError as exc:
             parser.error("cannot read transcript input (%s)" % type(exc).__name__)
         findings.extend(diagnose(session, strict_stdio=args.stdio))

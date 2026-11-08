@@ -141,6 +141,11 @@ claim about everything that exists.
 
 ## Captures, evidence, and privacy
 
+- Transcript files and byte-stream stdin must be valid UTF-8. Invalid encoding
+  stops diagnosis with exit 2 and no report, including with `--exit-zero`; no
+  lossy replacement is used to invent request IDs or tool definitions. The
+  `parse_text` API accepts already decoded text and cannot recover bytes a
+  caller discarded. Valid literal Unicode replacement characters remain valid.
 - mcptriage never contacts the server or the network. It reads only the files
   you point it at.
 - Evidence lines are redacted before display, in both text and JSON output:
