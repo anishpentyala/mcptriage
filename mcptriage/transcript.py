@@ -376,5 +376,5 @@ def parse_text(text: str) -> Session:
 
 
 def parse_file(path: str) -> Session:
-    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+    with open(path, "r", encoding="utf-8") as fh:
         return parse_text(fh.read())
