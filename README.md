@@ -381,8 +381,13 @@ its listed credential keys. Arbitrary encoding layers and escaped characters
 inside secret values are not a complete masking guarantee.
 
 Config checks validate field shapes before using them: `command`, `url`, `envFile` and
-`type` must be strings, `args` an array of strings and `env` an object of
-string values. Malformed values produce `CFG_SHAPE` without echoing those values;
+`type` must be strings and `args` an array of strings. `env` must be an object:
+`mcpServers` retains string-only values; the selected VS Code `servers` format
+also accepts finite numbers and `null`, but not booleans
+or containers. Values are only inspected, never converted, applied or printed.
+This format difference was checked against the [VS Code configuration reference](https://code.visualstudio.com/docs/agents/reference/mcp-configuration)
+and its actual `env` schema on 2026-11-07. See [source evidence](docs/vscode-env-evidence.md).
+Malformed values produce `CFG_SHAPE` without echoing those values;
 they cannot count as launch or endpoint evidence. These remain shared-format
 checks rather than a guarantee that any specific client will accept the config.
 
