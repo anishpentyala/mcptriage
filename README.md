@@ -816,3 +816,20 @@ config contents are not included in this diagnostic. Valid Unicode text,
 including a literal U+FFFD replacement character already present in a valid
 UTF-8 file, is not treated as a decoding failure. This does not add endpoint
 validation or change the text API's responsibility for its already-decoded input.
+
+
+### VS Code transport endpoint requirements
+
+In a selected top-level `servers` map, an explicit `type: "stdio"` requires
+its own nonempty `command`, while `type: "http"` and `type: "sse"` require
+their own nonempty `url`. A value of the wrong JSON type, an empty string or
+only whitespace does not satisfy that requirement. `CFG_TRANSPORT_REQUIRED`
+is high severity, so `check-config` exits 1. The finding does not repeat
+endpoint values. Existing field-type and command-path findings can also apply.
+
+These requirements were checked against the [VS Code MCP configuration reference](https://code.visualstudio.com/docs/agents/reference/mcp-configuration)
+on November 8, 2026. This is not a complete VS Code schema validator: no
+`type` requirement is added, unknown type spellings keep their existing
+diagnostic, and this rule does not extend to portable `mcpServers` maps or
+`streamable-http` aliases. When both roots exist, the selected `mcpServers`
+map keeps its existing precedence. No server is launched or contacted.
