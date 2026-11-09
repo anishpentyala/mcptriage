@@ -40,7 +40,7 @@ def test_transcript_generic_invalidparams_has_no_fabricated_additional_detail(sp
             {'id': 2, 'method': 'tools/call', 'params': {'name': 'x', 'arguments': {'arg': 1}}},
             {'id': 2, 'error': {'code': -32602}}]
     session = parse_text('\n'.join(map(json.dumps, rows)))
-    finding = next(f for f in diagnose(session, strict_stdio=strict) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    finding = next(f for f in diagnose(session, strict_stdio=strict) if f.code=='TOOL_CALL_PROTOCOL_ERROR')
     assert 'unexpected argument' not in finding.why
 
 

@@ -30,12 +30,12 @@ def test_success_or_nonboolean_marker_does_not_invent_protocol_error(result):
     assert not any(f.code=='TOOL_CALL_PROTOCOL_ERROR' for f in inspect({'result':result}))
 
 @pytest.mark.parametrize('response,expected',[
- ({'error':{'code':-32602,'message':'invalid params'}},'TOOL_CALL_ARG_MISMATCH'),
+ ({'error':{'code':-32602,'message':'invalid params'}},'TOOL_CALL_PROTOCOL_ERROR'),
  ({'result':{'isError':True,'content':[{'text':'failed'}]}},'TOOL_CALL_FAILED')])
 def test_existing_specific_paths_stay_separate(response,expected):
     fs=inspect(response)
     assert sum(f.code==expected for f in fs)==1
-    assert not any(f.code=='TOOL_CALL_PROTOCOL_ERROR' for f in fs)
+    assert not any(f.code=='TOOL_CALL_ARG_MISMATCH' for f in fs)
 
 @pytest.mark.parametrize('name',[None,[],{},True,1])
 def test_invalid_name_keeps_shape_diagnosis(name):

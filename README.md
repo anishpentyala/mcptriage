@@ -100,13 +100,13 @@ Transcript rules (input: captured JSON-RPC exchange):
 | TOOLS_LIST_HANG | high | `tools/list` sent, no response or unambiguous captured cancellation |
 | TOOLS_LIST_CANCELLATION_OBSERVED | medium | unanswered list has a later matching explicit cancellation notification |
 | AUTH_ON_LIST | high | 401/unauthorized on `tools/list` after a clean initialize |
-| TOOL_CALL_ARG_MISMATCH | high | `-32602` call, with arguments checked against the tool's own inputSchema |
+| TOOL_CALL_ARG_MISMATCH | high | `-32602` call with an independently demonstrated supported inputSchema violation |
 | VERSION_DOWNSHIFT | medium | negotiated protocol version differs from offered |
 | SESSION_ID_LOST | medium | 400/404 involving `Mcp-Session-Id` after initialize |
 | EMPTY_TOOLS_LIST | medium | list succeeds but returns `[]` (auth-gated or none registered) |
 | PAGINATION_INCOMPLETE | medium | `nextCursor` returned, next page never requested |
 | ERA_MIX | medium | 2025 handshake mixed with 2026-era markers |
-| TOOL_CALL_PROTOCOL_ERROR | high | `tools/call` returns a valid JSON-RPC error other than the separately diagnosed `-32602` |
+| TOOL_CALL_PROTOCOL_ERROR | high | `tools/call` returns a valid JSON-RPC error; `-32602` without independent schema detail stays here |
 | TOOL_CALL_FAILED | medium | call returns `isError: true` (server-side, not protocol) |
 | MISSING_INITIALIZED | low | no `notifications/initialized` after initialize |
 | UNUSABLE_TOOLS_CATALOG | high | malformed tools/list result, tools array or entry/name shape |
@@ -869,3 +869,31 @@ Direction markers and live timeout verification remain outside this scope.
 Malformed or ambiguous captures can still have other findings. Exit status
 retains the existing severity policy: only a high-severity finding causes exit1;
 a medium cancellation finding and exit0 are not proof of a healthy server.
+
+
+### Invalid params is not proof of bad arguments
+
+A captured `tools/call` JSON-RPC error with code `-32602` does not by itself
+identify an argument-schema violation. The MCP tools specification uses that
+same code for its `Unknown tool: invalid_tool_name` example, and distinguishes
+request/protocol errors from tool-execution input-validation errors.
+
+`TOOL_CALL_ARG_MISMATCH` now requires both that observed rejection and an
+independently supported violation of an unambiguous earlier captured tool's
+`inputSchema`. Its explanation states that this is independent evidence, not
+proof of the server's exact reason. Without such evidence, the call remains a
+high-severity `TOOL_CALL_PROTOCOL_ERROR`: check tool availability and the request
+structure, rather than assume the arguments need changing. The tool does not
+trust error-message wording to select either diagnosis. Matching the supported
+schema subset does not establish full validity or server correctness.
+
+This changes finding codes for some `-32602` captures, including valid-looking
+arguments and unavailable/stale/ambiguous schema evidence. Both categories remain
+high severity, with the existing default exit1 and `--exit-zero` override.
+Successful calls and `isError: true` tool results keep their existing behavior;
+no nested-schema support, server execution or automatic argument repair is added.
+
+Try `mcptriage diagnose examples/unknown-tool-invalid-params.jsonl`. This is a
+synthetic capture using the specification's unknown-tool error, not a recorded
+user session. Source excerpts and limits are in
+[docs/invalid-params-evidence.md](docs/invalid-params-evidence.md).

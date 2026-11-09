@@ -26,7 +26,7 @@ def test_duplicate_definition_order_cannot_choose_schema(definitions, strict):
     assert s.tools_by_name() == {"safe": {"required": ["s"]}}
     findings = diagnose(s, strict_stdio=strict)
     assert any(f.code == "DUPLICATE_TOOL_NAMES" for f in findings)
-    calls = [f for f in findings if f.code == "TOOL_CALL_ARG_MISMATCH"]
+    calls = [f for f in findings if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR')]
     x = next(f for f in calls if "'x'" in f.title)
     safe = next(f for f in calls if "'safe'" in f.title)
     assert "missing required" not in x.why
@@ -38,7 +38,7 @@ def test_duplicate_clears_older_schema_without_guessing_equality(same):
     duplicate = [tool("x", "new"), tool("x", "new" if same else "other")]
     s = session(listing(1, [tool("x", "old")]) + listing(2, duplicate) + call(3, "x"))
     assert "x" not in s.tools_by_name()
-    assert "missing required" not in next(f.why for f in diagnose(s) if f.code == "TOOL_CALL_ARG_MISMATCH")
+    assert "missing required" not in next(f.why for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
 
 @pytest.mark.parametrize("changed_after_call", [False, True])
 def test_later_unique_response_recovers_without_rewriting_request_time(changed_after_call):
@@ -47,7 +47,7 @@ def test_later_unique_response_recovers_without_rewriting_request_time(changed_a
     update = listing(2, [tool("x", "new")])
     rows += [c[0]] + update + [c[1]] if changed_after_call else update + c
     s = session(rows)
-    finding = next(f for f in diagnose(s) if f.code == "TOOL_CALL_ARG_MISMATCH")
+    finding = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert ("missing required argument 'new'" in finding.why) is not changed_after_call
     assert s.tools_by_name() == {"x": {"required": ["new"]}}
 

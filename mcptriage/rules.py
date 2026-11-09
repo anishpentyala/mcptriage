@@ -984,24 +984,30 @@ def rule_tool_call_problems(session: Session, strict: bool = False) -> List[Find
         args = params.get("arguments")
         err = resp.error()
         if err is not None and _usable_error_code(err.get("code")) and _json_equal(err.get("code"), -32602):
-            detail = ""
+            problems = []
             schema = None
             if isinstance(args, dict):
                 schema = session.tools_by_name(before_line=req.line_no).get(name)
             if schema:
                 problems = validate_arguments(schema, args)
-                if problems:
-                    detail = " Arguments violate the tool's own inputSchema: " + "; ".join(problems) + "."
-            findings.append(Finding(
-                "TOOL_CALL_ARG_MISMATCH", HIGH,
-                "tools/call '%s' rejected with invalid params" % name,
-                "%s | %s" % (_ev(req), _ev(resp)),
-                "The server rejected the arguments the client sent.%s" % detail,
-                "Fix the caller to send arguments matching the tool's inputSchema. If "
-                "an agent built the call, surface the schema violation in its retry "
-                "feedback instead of the raw JSON-RPC error.",
-            ))
-            continue
+            if problems:
+                detail = " Arguments violate the tool's own inputSchema: " + "; ".join(problems) + "."
+                findings.append(Finding(
+                    "TOOL_CALL_ARG_MISMATCH", HIGH,
+                    "tools/call '%s' rejected with invalid params and observed schema violations" % name,
+                    "%s | %s" % (_ev(req), _ev(resp)),
+                    "The server rejected the call with invalid params.%s The captured "
+                    "violation is independent evidence, not proof of the server's exact "
+                    "reason for rejecting it." % detail,
+                    "Fix the caller to send arguments matching the tool's inputSchema. If "
+                    "an agent built the call, surface the schema violation in its retry "
+                    "feedback instead of the raw JSON-RPC error.",
+                ))
+                continue
+            # -32602 also covers unknown tools and malformed request envelopes.
+            # Without independent schema evidence it cannot identify which field
+            # caused this rejection. Keep the protocol error high, without asking
+            # the user to fix arguments that the capture has not shown are wrong.
         if err is not None and _usable_error_code(err.get("code")):
             findings.append(Finding(
                 "TOOL_CALL_PROTOCOL_ERROR", HIGH,

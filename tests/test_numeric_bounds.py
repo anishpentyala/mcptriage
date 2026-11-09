@@ -70,14 +70,14 @@ def test_wire_bounds_use_exact_decimal_not_float_or_context(keyword,bound,value,
     with localcontext() as ctx:
         ctx.prec = 2
         fs = diagnose(parse_text(capture(keyword,bound,value)))
-    finding = next(f for f in fs if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    finding = next(f for f in fs if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert ('violates numeric' in finding.why) is violates
 
 
 @pytest.mark.parametrize('error', [True, False])
 def test_success_is_not_new_validation_scan(error):
     fs = diagnose(parse_text(capture('minimum','10','1',error)))
-    matches = [f for f in fs if f.code == 'TOOL_CALL_ARG_MISMATCH']
+    matches = [f for f in fs if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR')]
     assert bool(matches) is error
     if error:
         assert 'violates numeric minimum' in matches[0].why

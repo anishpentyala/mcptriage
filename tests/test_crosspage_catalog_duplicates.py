@@ -42,8 +42,8 @@ def test_linked_duplicate_cannot_choose_a_schema(first, second):
     findings = diagnose(s)
     duplicate = [f for f in findings if f.code == 'DUPLICATE_CATALOG_PAGE_NAMES']
     assert len(duplicate) == 1 and duplicate[0].evidence.startswith('line 4:')
-    x = next(f for f in findings if f.code == 'TOOL_CALL_ARG_MISMATCH' and "'x'" in f.title)
-    safe = next(f for f in findings if f.code == 'TOOL_CALL_ARG_MISMATCH' and "'safe'" in f.title)
+    x = next(f for f in findings if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR') and "'x'" in f.title)
+    safe = next(f for f in findings if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR') and "'safe'" in f.title)
     assert 'missing required' not in x.why
     assert "missing required argument 'ok'" in safe.why
     assert s.messages == old
@@ -67,14 +67,14 @@ def test_same_page_duplicate_stays_unusable_on_later_page():
 def test_new_catalog_recovers_after_ambiguity(boundary):
     s = session(chain() + boundary + call())
     assert s.tools_by_name() == {'x': {'required': ['new']}}
-    finding = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    finding = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert "missing required argument 'new'" in finding.why
 
 
 def test_future_collision_does_not_rewrite_earlier_call():
     rows = page(1, [tool('x', 'first')], next_cursor='next') + call()
     rows += page(2, [tool('x', 'second')], cursor='next') + call(91)
-    findings = [f for f in diagnose(session(rows)) if f.code == 'TOOL_CALL_ARG_MISMATCH']
+    findings = [f for f in diagnose(session(rows)) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR')]
     assert "missing required argument 'first'" in findings[0].why
     assert 'missing required' not in findings[1].why
 
@@ -141,7 +141,7 @@ def test_catalog_cache_boundary_keeps_call_before_and_after_collision_separate()
     rows += call(90) + call(91)
     rows += page(2, [tool('x', 'second')], cursor='next')
     rows += call(92) + call(93)
-    findings = [f for f in diagnose(session(rows)) if f.code == 'TOOL_CALL_ARG_MISMATCH']
+    findings = [f for f in diagnose(session(rows)) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR')]
     assert len(findings) == 4
     assert all('first' in f.why for f in findings[:2])
     assert all('missing required' not in f.why for f in findings[2:])
