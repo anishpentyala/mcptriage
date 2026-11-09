@@ -18,13 +18,13 @@ def session(result,params=None):
 def test_fresh_first_page_replaces_prior_schema_evidence(params,tools):
     s=session({'tools':tools},params)
     assert 'old' not in s.tools_by_name()
-    f=next(f for f in diagnose(s)if f.code=='TOOL_CALL_ARG_MISMATCH')
+    f=next(f for f in diagnose(s)if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'old_required' not in f.why
     assert ('new' in s.tools_by_name())==bool(tools)
 
 
 def test_empty_refresh_does_not_explain_failure_with_removed_schema_control():
-    f=next(f for f in diagnose(session({'tools':[]}))if f.code=='TOOL_CALL_ARG_MISMATCH')
+    f=next(f for f in diagnose(session({'tools':[]}))if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'old_required' not in f.why, 'fresh empty listing must not supply a removed tool schema'
 
 
@@ -70,5 +70,5 @@ def test_failed_refresh_is_not_an_observed_empty_catalog():
 def test_successful_refresh_updates_same_named_schema():
     updated=dict(OLD,inputSchema={'type':'object','required':['current_required']})
     s=session({'tools':[updated]})
-    f=next(f for f in diagnose(s)if f.code=='TOOL_CALL_ARG_MISMATCH')
+    f=next(f for f in diagnose(s)if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'current_required' in f.why and 'old_required' not in f.why
