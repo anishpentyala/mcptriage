@@ -571,19 +571,93 @@ def rule_tools_list_error(session: Session, strict: bool = False) -> List[Findin
     return findings
 
 
+def _observed_list_cancellations(session: Session) -> Dict[int, Message]:
+    """Unambiguous request-instance ownership of explicit cancellation notices.
+
+    This is observation, not proof of the sender's direction or of receiver
+    acceptance. Do not infer cancellation from a disconnect, a reason string,
+    malformed params, an old notification or an ID reused while unanswered.
+    """
+    if any(isinstance(m.method, str) and m.method.lower() in _SERVER_INITIATED_METHODS
+           for m in session.requests()):
+        return {}  # Directionless bidirectional traffic cannot establish ownership.
+    pending, ambiguous, observed = {}, set(), {}
+    for m in session.messages:
+        if m.kind == "request":
+            if m.method == "initialize":
+                pending.clear()
+                ambiguous.clear()
+            key = (type(m.msg_id), m.msg_id)
+            if key in pending:
+                ambiguous.add(key)
+                observed.pop(id(pending[key]), None)
+            pending[key] = m
+        elif m.kind == "response":
+            key = (type(m.msg_id), m.msg_id)
+            pending.pop(key, None)
+        elif m.kind == "notification" and m.method == "notifications/cancelled":
+            if (m.obj.get("jsonrpc") != "2.0"
+                    or "result" in m.obj or "error" in m.obj):
+                continue
+            params = m.obj.get("params")
+            if not isinstance(params, dict) or "requestId" not in params:
+                continue
+            if "reason" in params and not isinstance(params["reason"], str):
+                continue
+            if "_meta" in params and not isinstance(params["_meta"], dict):
+                continue
+            ident = params["requestId"]
+            if isinstance(ident, WireNumber):
+                exact = ident.exact
+                if (not exact.is_finite() or exact.adjusted() >= 4300
+                        or exact != exact.to_integral_value()):
+                    continue
+                ident = int(exact)
+            if type(ident) not in (str, int):
+                continue
+            key = (type(ident), ident)
+            owner = pending.get(key)
+            if owner is None or key in ambiguous or owner.method != "tools/list":
+                continue
+            # Task-augmented requests have a separate cancellation mechanism.
+            owner_params = owner.obj.get("params")
+            if isinstance(owner_params, dict) and "task" in owner_params:
+                continue
+            observed.setdefault(id(owner), m)
+    return observed
+
+
 def rule_tools_list_hang(session: Session, strict: bool = False) -> List[Finding]:
     findings = []
+    cancellations = _observed_list_cancellations(session)
     for req in session.requests("tools/list"):
         if session.response_for(req) is not None:
+            continue
+        cancellation = cancellations.get(id(req))
+        if cancellation is not None:
+            findings.append(Finding(
+                "TOOLS_LIST_CANCELLATION_OBSERVED", MEDIUM,
+                "tools/list has a later matching cancellation notification and no captured response",
+                "%s | cancellation notification at line %d (reason omitted)"
+                % (_ev(req), cancellation.line_no),
+                "The capture requests cancellation of this list. MCP receivers should "
+                "stop processing and not respond, so a missing reply alone does not "
+                "establish a hung handler or buffering proxy. The notification does "
+                "not prove receiver acceptance, sender direction or why it was sent.",
+                "Check client cancellation and timeout logs if the interruption was "
+                "unexpected. Capture direction and the full exchange before attributing "
+                "a server fault; cancellation may also follow a real timeout.",
+            ))
             continue
         findings.append(Finding(
             "TOOLS_LIST_HANG", HIGH,
             "tools/list was sent but no response appears in this capture",
             _ev(req),
-            "The handler is waiting on a backend, or a proxy is buffering the streamed "
-            "response. Clients show this as stuck on 'Loading tools'.",
-            "Check the server log for this request id. Serve list responses as plain "
-            "JSON where possible and make sure proxies do not buffer SSE.",
+            "A handler waiting on a backend or a proxy buffering a streamed response "
+            "can cause this. The missing reply alone does not establish a cause; "
+            "uncaptured cancellation or a truncated capture can also explain it.",
+            "Check client cancellation/timeout logs and the server log for this request "
+            "id. If it is still pending, check the backend and proxy SSE buffering.",
         ))
     return findings
 
