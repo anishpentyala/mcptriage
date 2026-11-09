@@ -188,6 +188,25 @@ def _check_server(name: str, spec: Dict[str, Any], path: str, base_dir: str,
             "Clients ignore or misroute unknown transport types.",
             "Use 'stdio', 'sse', or 'http' (client spellings vary; check its docs).",
         ))
+    # The selected VS Code format declares which endpoint field is required.
+    # A URL cannot stand in for a stdio command, nor a command for HTTP/SSE.
+    # Keep portable maps and absent/unknown type spellings on their existing
+    # path: clients have different inference rules and transport aliases.
+    if config_format == "servers" and stype in ("stdio", "http", "sse"):
+        required = "command" if stype == "stdio" else "url"
+        endpoint = command if required == "command" else url
+        if not endpoint or not endpoint.strip():
+            findings.append(Finding(
+                "CFG_TRANSPORT_REQUIRED", HIGH,
+                "server '%s' transport '%s' requires a nonempty '%s'"
+                % (name, stype, required),
+                "%s: '%s' field '%s'" % (path, name, required),
+                "The selected VS Code transport needs its own launch or endpoint "
+                "field. A field for a different transport does not satisfy it. "
+                "Endpoint values are not echoed in this finding.",
+                "Supply a nonempty string for the required field, or correct the "
+                "declared transport to match the intended server.",
+            ))
     if isinstance(command, str) and command:
         findings.extend(_check_command(name, command, path))
     env = spec.get("env")
