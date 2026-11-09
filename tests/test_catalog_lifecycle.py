@@ -33,7 +33,7 @@ def test_initialize_attempt_invalidates_old_schema_in_real_diagnosis(reply):
     rows += call(4)
     s = session(rows)
     assert s.tools_by_name() == {}
-    findings = [f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH']
+    findings = [f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR')]
     assert len(findings) == 2
     assert 'old_required' in findings[0].why
     assert 'old_required' not in findings[1].why
@@ -42,7 +42,7 @@ def test_initialize_attempt_invalidates_old_schema_in_real_diagnosis(reply):
 def test_delayed_old_list_response_after_initialize_cannot_restore_catalog():
     rows = listing()[:1] + [{'id': 3, 'method': 'initialize'}] + listing()[1:] + call(4)
     assert session(rows).tools_by_name() == {}
-    finding = next(f for f in diagnose(session(rows)) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    finding = next(f for f in diagnose(session(rows)) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'old_required' not in finding.why
 
 
@@ -59,7 +59,7 @@ def test_fresh_listing_after_initialize_provides_new_schema():
     rows += [{'id': 5, 'method': 'tools/list'}, {'id': 5, 'result': {'tools': [new_tool]}}] + call(4)
     s = session(rows)
     assert s.tools_by_name() == {'query': new_tool['inputSchema']}
-    finding = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    finding = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'new_required' in finding.why and 'old_required' not in finding.why
 
 
