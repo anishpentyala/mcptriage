@@ -428,6 +428,15 @@ original line as unparsed evidence and continue other lines, without extracting
 nested substitute traffic. This is not arbitrary-depth parsing or a general
 resource-containment guarantee.
 
+For prefixed text, extraction considers only the first opening-brace object
+candidate. If that object has invalid JSON syntax, the line stays unparsed;
+the parser does not search later braces for a nested or later substitute
+message. Valid first objects with ordinary log prefixes/suffixes still work.
+Any undecodable first brace candidate blocks a later object, including a
+brace inside quoted prefix text. Such log prefixes can therefore prevent
+extraction of a later real message. This is conservative capture framing,
+not a complete transport parser or automatic session demultiplexing.
+
 Repeated JSON object member names are not unique protocol evidence. The parser
 retains the original line but excludes the entire ambiguous object, including
 prefixed log objects, from request/response pairing and startup/schema evidence.
