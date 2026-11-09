@@ -23,5 +23,5 @@ def test_wire_integral_values_do_not_invent_argument_violation(wire):
           '{"id":2,"method":"tools/call","params":{"name":"x","arguments":{"n":'+wire+'}}}\n'
           '{"id":2,"error":{"code":-32602}}')
     fs=diagnose(parse_text(text))
-    f=next(f for f in fs if f.code=='TOOL_CALL_ARG_MISMATCH')
+    f=next(f for f in fs if f.code=='TOOL_CALL_PROTOCOL_ERROR')
     assert 'should be integer' not in f.why
