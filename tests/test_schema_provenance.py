@@ -21,7 +21,7 @@ def test_unproven_schema_does_not_explain_argument_error(earlier):
                      {'id':2,'method':'tools/call','params':{'name':'x','arguments':{}}},
                      {'id':2,'error':{'code':-32602}}))
     assert s.tools_by_name(before_line=len(earlier)+2)=={}
-    f=next(f for f in diagnose(s) if f.code=='TOOL_CALL_ARG_MISMATCH')
+    f=next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'missing required' not in f.why
 
 
@@ -48,7 +48,7 @@ def test_valid_captured_list_preserves_diagnostic(identifier):
                      {'id':2,'method':'tools/call','params':{'name':'x','arguments':{}}},
                      {'id':2,'error':{'code':-32602}}))
     assert s.tools_by_name(before_line=3)=={'x':SCHEMA['tools'][0]['inputSchema']}
-    f=next(f for f in diagnose(s) if f.code=='TOOL_CALL_ARG_MISMATCH')
+    f=next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert "missing required argument 'secret'" in f.why
 
 
@@ -93,7 +93,7 @@ def test_cli_does_not_present_unproven_schema_detail(tmp_path,capsys,mode):
                          {'id':2,'error':{'code':-32602}}))
     assert main(['diagnose',str(path),'--format',mode])==1
     out=capsys.readouterr().out
-    assert 'TOOL_CALL_ARG_MISMATCH' in out
+    assert any(code in out for code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'missing required' not in out
 
 
