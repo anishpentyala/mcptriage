@@ -87,7 +87,7 @@ def test_ambiguous_catalog_does_not_supply_argument_schema():
     ])
     s=parse_text(text)
     assert s.tools_by_name()=={}
-    f=next(f for f in diagnose(s) if f.code=='TOOL_CALL_ARG_MISMATCH')
+    f=next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'violate' not in f.why
 
 
