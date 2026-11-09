@@ -337,7 +337,9 @@ def parse_text(text: str) -> Session:
                     extracted = True
                     break
                 except json.JSONDecodeError:
-                    continue
+                    # The first object candidate is malformed. Searching later
+                    # braces can reinterpret its nested data as protocol traffic.
+                    break
                 except _NonfiniteJSONConstant:
                     nonfinite_constant = True
                     break
