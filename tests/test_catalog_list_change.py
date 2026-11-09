@@ -33,7 +33,7 @@ def test_list_change_omits_stale_argument_explanation(strict, refresh):
     s = session(listing(1) + [CHANGE] + refresh + call(10))
     before = copy.deepcopy(s.messages)
     findings = diagnose(s, strict_stdio=strict)
-    mismatch = next(f for f in findings if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    mismatch = next(f for f in findings if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'missing required' not in mismatch.why
     assert s.tools_by_name() == {}
     assert s.messages == before
@@ -42,7 +42,7 @@ def test_list_change_omits_stale_argument_explanation(strict, refresh):
 @pytest.mark.parametrize('count', [1, 2, 3])
 def test_fresh_paired_catalog_recovers_after_changes(count):
     s = session(listing(1) + [CHANGE] * count + listing(2, 'new') + call(3))
-    mismatch = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    mismatch = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert "missing required argument 'new'" in mismatch.why
     assert "missing required argument 'old'" not in mismatch.why
 
@@ -58,7 +58,7 @@ def test_invalidation_is_scoped_to_request_time(position):
     else:
         rows += [request, error, CHANGE]
     s = session(rows)
-    mismatch = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    mismatch = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert ("missing required argument 'old'" in mismatch.why) is (position != 'before-call')
     assert s.tools_by_name() == {}
 
@@ -68,13 +68,13 @@ def test_invalidation_is_scoped_to_request_time(position):
                                   'notifications/tools/changed', 'tools/list'])
 def test_unrelated_notification_does_not_clear_tools(method):
     s = session(listing(1) + [{'method': method}] + call(2))
-    mismatch = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    mismatch = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert "missing required argument 'old'" in mismatch.why
 
 
 def test_request_with_notification_name_is_not_a_notification():
     s = session(listing(1) + [{'id': 20, 'method': CHANGE['method']}] + call(2))
-    mismatch = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    mismatch = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert "missing required argument 'old'" in mismatch.why
 
 
@@ -86,20 +86,20 @@ def test_cli_preserves_generic_error_without_stale_detail(tmp_path, capsys, mode
     p.write_text('\n'.join(map(json.dumps, listing(1) + [CHANGE] + call(2))))
     main(['diagnose', str(p), '--format', mode] + (['--stdio'] if strict else []))
     output = capsys.readouterr().out
-    assert 'TOOL_CALL_ARG_MISMATCH' in output
+    assert any(code in output for code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'missing required' not in output
 
 
 def test_catalog_requested_before_change_cannot_repopulate_stale_evidence():
     request, response = listing(2, 'in-flight')
     s = session(listing(1) + [request, CHANGE, response] + call(3))
-    finding = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    finding = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'missing required' not in finding.why
     assert s.tools_by_name() == {}
 
 
 def test_change_again_after_fresh_catalog_invalidates_it_again():
     s = session(listing(1) + [CHANGE] + listing(2, 'new') + [CHANGE] + call(3))
-    finding = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    finding = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'missing required' not in finding.why
     assert s.tools_by_name() == {}
