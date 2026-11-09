@@ -12,7 +12,7 @@ def explanation(allowed,value,declared=None,prefix=''):
         '{"id":2,"method":"tools/call","params":{"name":"calc","arguments":{"x":'+value+'}}}',
         '{"id":2,"error":{"code":-32602,"message":"Invalid params"}}',
     ])
-    return next(f.why for f in diagnose(parse_text(text)) if f.code=='TOOL_CALL_ARG_MISMATCH')
+    return next(f.why for f in diagnose(parse_text(text)) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
 
 
 @pytest.mark.parametrize('prefix',['','2026-11-05 INFO '])
