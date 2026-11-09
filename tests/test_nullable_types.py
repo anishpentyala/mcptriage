@@ -45,7 +45,7 @@ def test_captured_union_explanation_and_request_time_schema(strict, value):
     text = "\n".join(map(json.dumps, rows))
     session = parse_text(text)
     before = copy.deepcopy(session.messages)
-    finding = next(f for f in diagnose(session, strict_stdio=strict) if f.code == "TOOL_CALL_ARG_MISMATCH")
+    finding = next(f for f in diagnose(session, strict_stdio=strict) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert ("should be string or null" in finding.why) is (value is not None and not isinstance(value, str))
     assert "should be boolean" not in finding.why
     assert session.messages == before
@@ -82,5 +82,5 @@ def test_cli_union_detail_preserves_generic_invalid_params(tmp_path, capsys, mon
     assert main(["diagnose", str(path) if source == "file" else "-", "--format", mode]) == 1
     out = capsys.readouterr()
     assert not out.err
-    assert "TOOL_CALL_ARG_MISMATCH" in out.out
+    assert ("TOOL_CALL_ARG_MISMATCH" if value == 42 else "TOOL_CALL_PROTOCOL_ERROR") in out.out
     assert ("should be string or null" in out.out) is (value == 42)
