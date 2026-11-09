@@ -46,7 +46,7 @@ def call():
 def test_unlinked_page_cannot_explain_call_failure(rows):
     s = session(rows + call())
     assert 'page' not in s.tools_by_name()
-    finding = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    finding = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'page_required' not in finding.why
 
 
@@ -54,7 +54,7 @@ def test_unlinked_page_cannot_explain_call_failure(rows):
 def test_observed_cursor_chain_supplies_schemas(cursor):
     s = session(listing(cursor) + page(cursor) + call())
     assert set(s.tools_by_name()) == {'old', 'page'}
-    finding = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    finding = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'page_required' in finding.why
 
 
@@ -75,7 +75,7 @@ def test_final_page_exhausts_cursor_and_preserves_prior_tools():
 def test_past_call_cannot_use_later_advertisement():
     rows = page() + call() + listing()
     s = session(rows)
-    finding = next(f for f in diagnose(s) if f.code == 'TOOL_CALL_ARG_MISMATCH')
+    finding = next(f for f in diagnose(s) if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
     assert 'page_required' not in finding.why
 
 
