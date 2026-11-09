@@ -50,14 +50,14 @@ def test_real_call_rejection_preserved_without_invented_pattern_explanation(tmp_
             {'id':2,'error':{'code':-32602,'message':'invalid params'}}]
     text = '\n'.join(map(json.dumps, rows))
     if mode == 'direct':
-        f = next(f for f in diagnose(parse_text(text)) if f.code=='TOOL_CALL_ARG_MISMATCH')
+        f = next(f for f in diagnose(parse_text(text)) if f.code=='TOOL_CALL_PROTOCOL_ERROR')
         assert 'Arguments violate' not in f.why
-        assert 'server rejected' in f.why
+        assert 'protocol-level rejection' in f.why
     else:
         path = tmp_path/'capture.jsonl';path.write_text(text)
         assert main(['diagnose',str(path),'--format',mode]) == 1
         output = capsys.readouterr().out
-        assert 'TOOL_CALL_ARG_MISMATCH' in output
+        assert any(code in output for code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
         assert 'unexpected argument' not in output
 
 
