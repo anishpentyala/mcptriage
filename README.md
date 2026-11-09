@@ -97,7 +97,8 @@ Transcript rules (input: captured JSON-RPC exchange):
 | STDIO_POLLUTION | high | non-JSON lines in a stdio stream |
 | MISSING_TOOLS_CAPABILITY | high | initialize result lacks `tools`, client never lists |
 | TOOLS_LIST_ERROR | high | `tools/list` JSON-RPC error, per-code diagnosis |
-| TOOLS_LIST_HANG | high | `tools/list` sent, no response |
+| TOOLS_LIST_HANG | high | `tools/list` sent, no response or unambiguous captured cancellation |
+| TOOLS_LIST_CANCELLATION_OBSERVED | medium | unanswered list has a later matching explicit cancellation notification |
 | AUTH_ON_LIST | high | 401/unauthorized on `tools/list` after a clean initialize |
 | TOOL_CALL_ARG_MISMATCH | high | `-32602` call, with arguments checked against the tool's own inputSchema |
 | VERSION_DOWNSHIFT | medium | negotiated protocol version differs from offered |
@@ -833,3 +834,38 @@ on November 8, 2026. This is not a complete VS Code schema validator: no
 diagnostic, and this rule does not extend to portable `mcpServers` maps or
 `streamable-http` aliases. When both roots exist, the selected `mcpServers`
 map keeps its existing precedence. No server is launched or contacted.
+
+
+## Captured list cancellations
+
+A valid `notifications/cancelled` notification after an unanswered `tools/list`
+request is evidence of a requested interruption, not by itself evidence of a
+hung backend or buffering proxy. The rule emits medium-severity
+`TOOLS_LIST_CANCELLATION_OBSERVED` instead of `TOOLS_LIST_HANG` when it can link
+an explicit JSON-RPC 2.0 cancellation to that unique in-flight request. It shows
+the request and cancellation line numbers but does not copy the optional reason.
+
+This records the notification, not receiver acceptance, sender direction, a
+successful list, or the cause of the interruption. Cancellation can follow a
+real timeout; inspect client and server logs if it was unexpected. Both current
+[2025](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation)
+and [2026](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation)
+protocol definitions say receivers should stop work and not respond, but may
+ignore cancellation in several circumstances.
+
+Malformed, wrong-ID, pre-request or stale notifications do not weaken the missing
+response finding. String and integer IDs stay distinct, including exact numeric
+wire values. IDs reused while unanswered and captures containing recognized
+server-initiated request methods cannot establish cancellation ownership. A new
+initialize request starts a new cancellation ownership window. Task-augmented
+requests are not handled by this notification rule. If a response is captured,
+existing response/error/catalog diagnoses remain unchanged, including races with
+a cancellation notice.
+
+The rule does not infer cancellation from reason text, log banners, transport
+disconnects or elapsed time. In particular, 2026 Streamable HTTP cancellation
+uses stream closure; this line-oriented JSON-RPC rule cannot establish that.
+Direction markers and live timeout verification remain outside this scope.
+Malformed or ambiguous captures can still have other findings. Exit status
+retains the existing severity policy: only a high-severity finding causes exit1;
+a medium cancellation finding and exit0 are not proof of a healthy server.
