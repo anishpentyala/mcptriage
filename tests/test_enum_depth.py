@@ -26,7 +26,7 @@ def test_accepted_deep_json_transcript_never_aborts_diagnosis(depth):
     s=parse_text(text)
     fs=diagnose(s)
     if len(s.parsed)==4:
-        f=next(f for f in fs if f.code=='TOOL_CALL_ARG_MISMATCH')
+        f=next(f for f in fs if f.code in ('TOOL_CALL_ARG_MISMATCH', 'TOOL_CALL_PROTOCOL_ERROR'))
         assert 'not one of' not in f.why
     else:
         assert s.unparsed
@@ -92,7 +92,7 @@ def test_cli_deep_enum_has_safe_exit_and_bounded_output(equal,mode,source,tmp_pa
     assert len(result.stdout)<3000
     accepted=len(parse_text(text).parsed)==7
     if accepted:
-        assert 'TOOL_CALL_ARG_MISMATCH' in result.stdout
+        assert ('TOOL_CALL_PROTOCOL_ERROR' if equal else 'TOOL_CALL_ARG_MISMATCH') in result.stdout
         assert ('not one of' in result.stdout) is (not equal)
     else:
         # Runtime decoder rejection stays capture-quality evidence, not schema evidence.
